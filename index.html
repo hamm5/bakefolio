@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>레시피 — 리스트 & 기록</title>
+<style>
+  :root{
+    --bg:#FBF8F3;--card:#FFFFFF;--ink:#2B2622;--ink-soft:#6F665E;
+    --line:#E7DECF;--line-strong:#D6C8B2;--accent:#B5651D;--accent-soft:#F3E7D6;
+    --jeggwa:#C6803B;--jeppang:#7A6A4F;--good:#3E7A5A;--warn:#B23B3B;--radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
+    line-height:1.5;font-size:15px;}
+  .wrap{max-width:760px;margin:0 auto;padding:16px 16px 120px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:0 0 14px;}
+  .card > h2{font-size:14px;margin:0 0 12px;display:flex;align-items:center;gap:8px;letter-spacing:-.2px}
+  .card > h2 .step{display:inline-flex;width:20px;height:20px;border-radius:6px;background:var(--accent-soft);
+    color:var(--accent);font-size:11px;font-weight:700;align-items:center;justify-content:center}
+  .hint{font-size:12px;color:var(--ink-soft);margin:2px 0 0}
+  label{display:block;font-size:12px;color:var(--ink-soft);margin:0 0 4px}
+  input[type=text],input[type=number],select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line-strong);
+    border-radius:8px;background:#fff;color:var(--ink);font-size:14px;font-family:inherit;}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent-soft);border-color:var(--accent)}
+  textarea{resize:vertical;min-height:42px}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row > div{flex:1;min-width:120px}
+  .seg{display:inline-flex;background:#F1E9DB;border-radius:10px;padding:3px;gap:3px}
+  .seg button{border:0;background:transparent;padding:7px 18px;border-radius:8px;font-size:14px;font-weight:600;
+    color:var(--ink-soft);cursor:pointer;font-family:inherit}
+  .seg button.on[data-cat=jeppang]{background:var(--jeppang);color:#fff}
+  .seg button.on[data-cat=jeggwa]{background:var(--jeggwa);color:#fff}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{font-size:11px;color:var(--ink-soft);font-weight:600;text-align:left;padding:6px 6px;border-bottom:1px solid var(--line)}
+  td{padding:4px 6px;border-bottom:1px solid var(--line)}
+  td input{padding:7px 8px}
+  .num{text-align:right}
+  .pct-col{display:none}
+  body.show-pct .pct-col{display:table-cell}
+  .baseflag{cursor:pointer;font-size:11px;color:var(--ink-soft);white-space:nowrap}
+  .baseflag.is-base{color:var(--accent);font-weight:700}
+  .del{border:0;background:transparent;color:var(--line-strong);cursor:pointer;font-size:16px;padding:0 4px}
+  .del:hover{color:var(--warn)}
+  .addrow{margin-top:8px;border:1px dashed var(--line-strong);background:transparent;color:var(--accent);
+    padding:8px;border-radius:8px;width:100%;cursor:pointer;font-size:13px;font-family:inherit}
+  .toggle{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--ink);cursor:pointer}
+  .toggle input{width:auto}
+  .calc-out{background:var(--accent-soft);border-radius:8px;padding:10px 12px;margin-top:10px;font-size:14px}
+  .calc-out b{color:var(--accent)}
+  .pill{display:inline-block;background:#fff;border:1px solid var(--line-strong);border-radius:20px;
+    padding:3px 11px;margin:3px 4px 0 0;font-size:13px}
+  .pill b{color:var(--accent)}
+  details{border-top:1px dashed var(--line);margin-top:12px;padding-top:10px}
+  details summary{cursor:pointer;font-size:13px;color:var(--accent);font-weight:600;list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"＋ ";font-weight:700}
+  details[open] summary::before{content:"－ "}
+  .total-bar{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;
+    border-top:1px solid var(--line);font-size:14px}
+  .total-bar b{font-size:16px}
+  .jeppang-only{display:none}
+  body.cat-jeppang .jeppang-only{display:block}
+  .formula-tag{font-size:11px;color:var(--ink-soft);background:#F1E9DB;border-radius:6px;padding:2px 8px;margin-left:auto}
+  .seg-mini{display:inline-flex;background:#F1E9DB;border-radius:8px;padding:2px;gap:2px;margin-bottom:8px}
+  .seg-mini button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font-size:12px;
+    color:var(--ink-soft);cursor:pointer;font-family:inherit}
+  .seg-mini button.on{background:#fff;color:var(--accent);font-weight:600}
+  .note{font-size:11px;color:var(--ink-soft)}
+  .fixed-tag{font-size:10px;color:var(--jeppang);border:1px solid var(--line-strong);border-radius:5px;padding:1px 5px;margin-left:6px}
+  .tl-step{display:flex;gap:10px;margin-bottom:8px;align-items:flex-start}
+  .tl-time{flex:0 0 86px}.tl-body{flex:1}
+  .tl-dot{flex:0 0 auto;width:10px;height:10px;border-radius:50%;background:var(--accent);margin-top:14px}
+
+  /* 앱바 */
+  .appbar{display:flex;align-items:center;gap:10px;margin:4px 0 16px}
+  .appbar h1{font-size:18px;margin:0;letter-spacing:-.3px}
+  .back{border:1px solid var(--line-strong);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;
+    font-size:13px;font-family:inherit;color:var(--ink)}
+  .primary{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:10px 16px;font-size:14px;
+    font-weight:600;cursor:pointer;font-family:inherit}
+  .ghost{background:#fff;border:1px solid var(--line-strong);border-radius:8px;padding:7px 12px;font-size:13px;
+    cursor:pointer;font-family:inherit;color:var(--ink)}
+
+  /* 리스트 카드 */
+  .list-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;
+    margin:0 0 12px;cursor:pointer;transition:border-color .15s, transform .05s}
+  .list-card:hover{border-color:var(--line-strong)}
+  .list-card:active{transform:scale(.997)}
+  .lc-top{display:flex;align-items:center;gap:8px}
+  .badge{font-size:11px;font-weight:700;color:#fff;border-radius:6px;padding:2px 8px}
+  .badge.jeppang{background:var(--jeppang)}.badge.jeggwa{background:var(--jeggwa)}
+  .lc-name{font-size:16px;font-weight:600;letter-spacing:-.2px}
+  .lc-method{font-size:12px;color:var(--ink-soft);margin-left:auto}
+  .lc-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .chip{font-size:12px;color:var(--ink-soft);background:#F4EEE3;border-radius:6px;padding:3px 9px}
+  .lc-foot{display:flex;justify-content:space-between;margin-top:10px;font-size:11px;color:var(--ink-soft)}
+
+  /* 버전 */
+  .ver{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+  .ver:last-child{border-bottom:0}
+  .ver .vdate{font-size:12px;color:var(--accent);font-weight:700;flex:0 0 86px}
+  .ver .vmemo{flex:1;font-size:13px}
+  .ver .vmemo .empty{color:var(--ink-soft)}
+  .ver .vact{display:flex;gap:6px}
+  .vbtn{border:1px solid var(--line-strong);background:#fff;border-radius:6px;padding:4px 9px;font-size:12px;
+    cursor:pointer;font-family:inherit;color:var(--ink)}
+  .vbtn.danger{color:var(--warn);border-color:#E7C9C9}
+  .hide{display:none}
+
+  /* 검색 */
+  .search{margin:0 0 14px;font-size:15px;padding:11px 14px}
+  /* 후기·사진 */
+  .photo-btn{display:inline-block;cursor:pointer;margin-bottom:10px}
+  .thumbs{display:flex;flex-wrap:wrap;gap:8px}
+  .thumb,.review .rthumb{position:relative}
+  .thumb img,.rthumb{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+  .thumb-del{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;
+    background:var(--ink);color:#fff;font-size:13px;line-height:1;cursor:pointer}
+  .review{border-bottom:1px solid var(--line);padding:10px 0}
+  .review:last-child{border-bottom:0}
+  .rv-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .rv-note{font-size:13px;margin-top:8px}
+</style>
+</head>
+<body class="cat-jeppang">
+<div class="wrap">
+
+  <!-- ============ 리스트 뷰 ============ -->
+  <div id="listView">
+    <div class="appbar">
+      <h1>내 레시피</h1>
+      <button class="primary" style="margin-left:auto" onclick="newRecipe()">＋ 새 레시피</button>
+    </div>
+    <input type="text" id="searchBox" class="search" placeholder="레시피 검색 (이름·제법)" oninput="renderList()">
+    <div id="listBody"></div>
+  </div>
+
+  <!-- ============ 기록 뷰 ============ -->
+  <div id="recordView" class="hide">
+    <div class="appbar">
+      <button class="back" onclick="showList()">← 목록</button>
+      <h1 id="recTitle">레시피</h1>
+    </div>
+
+    <!-- 0. 시작 -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div class="seg">
+          <button id="btnJeppang" class="on" data-cat="jeppang" onclick="setCat('jeppang')">제빵</button>
+          <button id="btnJeggwa" data-cat="jeggwa" onclick="setCat('jeggwa')">제과</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="pctToggle" onchange="togglePct()"> 베이커스%(B.P) 표시</label>
+      </div>
+      <div style="margin-top:14px" class="row">
+        <div style="flex:2"><label>레시피명</label>
+          <input type="text" id="recipeName" oninput="onNameInput()" placeholder="예) 통밀 식빵"></div>
+        <div style="flex:1"><label>제법</label>
+          <select id="method" onchange="onMethodChange()"></select></div>
+      </div>
+    </div>
+
+    <!-- 1. 재료 -->
+    <div class="card">
+      <h2><span class="step">1</span> 재료 (반죽)</h2>
+      <table><thead><tr>
+        <th style="width:40%">재료명</th><th class="num" style="width:22%">무게(g)</th>
+        <th class="pct-col num" style="width:18%">B.P %</th><th style="width:16%"></th><th style="width:4%"></th>
+      </tr></thead><tbody id="ingBody"></tbody></table>
+      <button class="addrow" onclick="addIng()">＋ 재료 추가</button>
+      <div class="total-bar"><span>반죽 합계</span><b><span id="totalG">0</span> g</b></div>
+      <p class="hint">‘기준’을 누르면 그 재료가 100% 기준(보통 밀가루)이 돼.</p>
+      <details id="fillDetails">
+        <summary>충전물·토핑 (고정 g · 스케일 안 됨)</summary>
+        <table><thead><tr><th style="width:46%">이름</th><th style="width:30%">구분</th>
+          <th class="num" style="width:16%">g</th><th style="width:4%"></th></tr></thead>
+          <tbody id="fillBody"></tbody></table>
+        <button class="addrow" onclick="addFill()">＋ 충전물·토핑 추가</button>
+      </details>
+    </div>
+
+    <!-- 2. 물온도 -->
+    <div class="card">
+      <h2><span class="step">2</span> 물온도 계산 <span class="formula-tag" id="formulaTag">×3</span></h2>
+      <div class="row">
+        <div><label>희망 반죽온도 (℃)</label><input type="number" id="targetDough" value="27" oninput="calcWater()"></div>
+        <div><label>실내온도 (℃)</label><input type="number" id="roomTemp" value="25" oninput="calcWater()"></div>
+        <div><label>밀가루온도 (℃)</label><input type="number" id="flourTemp" value="24" oninput="calcWater()"></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div><label>마찰계수</label><input type="number" id="friction" value="20" oninput="calcWater()"></div>
+        <div><label>수돗물온도 (℃)</label><input type="number" id="tapTemp" value="18" oninput="calcWater()"></div>
+        <div id="spongeWrap" style="display:none"><label>스펀지 반죽온도 (℃)</label><input type="number" id="spongeTemp" value="24" oninput="calcWater()"></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div><label>총 물량 (g) <span class="note" id="waterAuto"></span></label><input type="number" id="waterAmt" value="0" oninput="markWaterManual();calcWater()"></div>
+      </div>
+      <div class="calc-out">
+        <span class="pill">사용수 온도 <b id="useWater">–</b></span>
+        <span class="pill">얼음량 <b id="iceAmt">–</b></span>
+        <div class="hint" id="waterFormula" style="margin-top:8px"></div>
+      </div>
+      <details>
+        <summary>마찰계수 역산하기</summary>
+        <div class="row">
+          <div><label>실내온도</label><input type="number" id="f_room" value="25" oninput="calcFriction()"></div>
+          <div><label>밀가루온도</label><input type="number" id="f_flour" value="24" oninput="calcFriction()"></div>
+          <div><label>사용한 물온도</label><input type="number" id="f_water" value="18" oninput="calcFriction()"></div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <div><label>결과 반죽온도</label><input type="number" id="f_result" value="27" oninput="calcFriction()"></div>
+          <div id="f_spongeWrap" style="display:none"><label>스펀지 반죽온도</label><input type="number" id="f_sponge" value="24" oninput="calcFriction()"></div>
+        </div>
+        <div class="calc-out" style="margin-top:10px">
+          <span class="pill">마찰계수 <b id="frictionOut">–</b></span>
+          <button class="pill" style="cursor:pointer" onclick="applyFriction()">↑ 위에 적용</button>
+        </div>
+      </details>
+    </div>
+
+    <!-- 3. 스케일 -->
+    <div class="card">
+      <h2><span class="step">3</span> 만들 양 (스케일)</h2>
+      <div class="row">
+        <div><label>목표 반죽 총량 (g)</label><input type="number" id="targetTotal" placeholder="예) 2000" oninput="scaleByTotal()"></div>
+        <div><label>또는 배율 (×)</label><input type="number" id="ratio" step="0.05" placeholder="예) 1.5" oninput="scaleByRatio()"></div>
+      </div>
+      <div id="scaleResult"></div>
+      <button class="addrow" style="border-style:solid" onclick="applyScaleAsBase()">이 배합을 기준 배합으로 바꾸기</button>
+    </div>
+
+    <!-- 4. 분할 -->
+    <div class="card">
+      <h2><span class="step">4</span> 분할</h2>
+      <div class="seg-mini" id="divSeg">
+        <button data-mode="weight" onclick="setDivMode('weight')">무게(g)</button>
+        <button data-mode="count" onclick="setDivMode('count')">개수</button>
+        <button data-mode="free" onclick="setDivMode('free')">자유성형</button>
+      </div>
+      <div class="row">
+        <div id="divWeightWrap"><label>분할 무게 (g/개)</label><input type="number" id="divWeight" value="200" oninput="calcDivide()"></div>
+        <div id="divPerPanWrap" style="display:none"><label>틀당 분할 수 (식빵)</label><input type="number" id="divPerPan" placeholder="비우면 1" oninput="calcDivide()"></div>
+        <div id="divCountWrap" style="display:none"><label>나눌 개수</label><input type="number" id="divCount" value="6" oninput="calcDivide()"></div>
+      </div>
+      <div class="calc-out" id="divOut">–</div>
+    </div>
+
+    <!-- 5. 발효 -->
+    <div class="card jeppang-only">
+      <h2><span class="step">5</span> 발효</h2>
+      <div style="margin-bottom:6px;font-size:13px;font-weight:600">1차 발효</div>
+      <div class="row">
+        <div><label>온도 (℃)</label><input type="number" id="ferm1Temp" placeholder="예) 27"></div>
+        <div><label>시간 (분)</label><input type="number" id="ferm1Time" placeholder="예) 60"></div>
+        <div><label>습도 (%)</label><input type="number" id="ferm1Hum" placeholder="예) 75"></div>
+      </div>
+      <div style="margin:14px 0 6px;font-size:13px;font-weight:600">2차 발효</div>
+      <div class="row">
+        <div><label>온도 (℃)</label><input type="number" id="ferm2Temp" placeholder="예) 38"></div>
+        <div><label>시간 (분)</label><input type="number" id="ferm2Time" placeholder="예) 40"></div>
+        <div><label>습도 (%)</label><input type="number" id="ferm2Hum" placeholder="예) 85"></div>
+      </div>
+    </div>
+
+    <!-- 6. 굽기 -->
+    <div class="card">
+      <h2><span class="step">6</span> 굽기</h2>
+      <div class="row">
+        <div><label>윗불 (℃)</label><input type="number" id="topTemp" placeholder="예) 180"></div>
+        <div><label>아랫불 (℃)</label><input type="number" id="bottomTemp" placeholder="예) 160"></div>
+        <div><label>시간 (분)</label><input type="number" id="bakeTime" placeholder="예) 25"></div>
+      </div>
+      <div class="row" style="margin-top:12px;align-items:center">
+        <div style="flex:0 0 auto"><label class="toggle"><input type="checkbox" id="convection" onchange="convHint()"> 컨벡션</label></div>
+        <div style="flex:0 0 auto"><label class="toggle"><input type="checkbox" id="steam" onchange="steamToggle()"> 스팀</label></div>
+        <div id="steamWrap" style="display:none"><label>스팀 분사</label><input type="text" id="steamDetail" placeholder="예) 투입 직후 3초"></div>
+      </div>
+      <div class="row" style="margin-top:12px"><div><label>틀</label><input type="text" id="pan" placeholder="예) 식빵팬"></div></div>
+      <p class="hint hide" id="convNote">컨벡션은 보통 설정온도보다 약 20℃ 낮게.</p>
+    </div>
+
+    <!-- 7. 만드는 방법 -->
+    <div class="card">
+      <h2><span class="step">7</span> 만드는 방법 (타임라인)</h2>
+      <div id="tlBody"></div>
+      <button class="addrow" onclick="addStep()">＋ 단계 추가</button>
+    </div>
+
+    <!-- 8. 버전 저장 -->
+    <div class="card">
+      <h2><span class="step">✓</span> 버전 저장</h2>
+      <label>변경 메모 (이번에 뭘 바꿨는지)</label>
+      <textarea id="verMemo" placeholder="예) 물 10g 줄이고 2차 발효 5분 늘림"></textarea>
+      <button class="primary" style="width:100%;margin-top:10px" onclick="saveVersion()">현재 내용 저장 + 버전 추가</button>
+      <div style="margin-top:16px;font-size:13px;font-weight:600">버전 이력</div>
+      <div id="verList"></div>
+    </div>
+
+    <!-- 9. 후기 · 사진 -->
+    <div class="card">
+      <h2><span class="step">후</span> 후기 · 사진</h2>
+      <p class="hint">구운 결과를 사진·메모로 남겨. 버전과 별개로 바로 저장돼.</p>
+      <label class="ghost photo-btn">＋ 사진 추가
+        <input type="file" accept="image/*" multiple onchange="onPhotoPick(event)" hidden>
+      </label>
+      <div id="draftThumbs" class="thumbs"></div>
+      <textarea id="reviewNote" style="margin-top:10px" placeholder="어땠는지 한 줄 (예: 2차 발효 더 길게 할걸)"></textarea>
+      <button class="primary" style="width:100%;margin-top:10px" onclick="addReview()">후기 추가</button>
+      <div id="reviewList" style="margin-top:16px"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const SEED = [{"id": "r1", "category": "제과", "name": "버터쿠키", "method": "크림법", "doughTemp": 22, "ings": [{"name": "박력분", "g": 400, "base": false}, {"name": "버터", "g": 280, "base": false}, {"name": "설탕", "g": 200, "base": false}, {"name": "소금", "g": 4, "base": false}, {"name": "달걀", "g": 120, "base": false}, {"name": "바닐라향", "g": 2, "base": false}], "fills": [], "division": {"mode": "free", "weight": 200, "count": 6, "perPan": null}, "ferm": {"t1": "", "tm1": "", "h1": "", "t2": "", "tm2": "", "h2": ""}, "bake": {"top": "", "bottom": "", "time": "", "pan": "오븐팬", "conv": false, "steam": false, "steamDetail": ""}, "steps": []}, {"id": "r2", "category": "제과", "name": "타르트", "method": "크림법", "doughTemp": 20, "ings": [{"name": "박력분", "g": 400, "base": false}, {"name": "달걀", "g": 100, "base": false}, {"name": "설탕", "g": 104, "base": false}, {"name": "버터", "g": 160, "base": false}, {"name": "소금", "g": 2, "base": false}], "fills": [{"name": "아몬드분말", "kind": "충전물", "g": 250}, {"name": "설탕", "kind": "충전물", "g": 226}, {"name": "버터", "kind": "충전물", "g": 250}, {"name": "달걀", "kind": "충전물", "g": 162}, {"name": "브랜디", "kind": "충전물", "g": 30}, {"name": "아몬드슬라이스", "kind": "토핑", "g": 100}, {"name": "에프리코트혼당", "kind": "토핑", "g": 150}, {"name": "물", "kind": "토핑", "g": 60}], "division": {"mode": "free", "weight": 200, "count": 6, "perPan": null}, "ferm": {"t1": "", "tm1": "", "h1": "", "t2": "", "tm2": "", "h2": ""}, "bake": {"top": "", "bottom": "", "time": "", "pan": "타르트팬 ∅10~12cm x8", "conv": false, "steam": false, "steamDetail": ""}, "steps": []}, {"id": "r3", "category": "제빵", "name": "단과자빵(소보로빵)", "method": "스트레이트법", "doughTemp": 27, "ings": [{"name": "강력분", "g": 900, "base": true}, {"name": "물", "g": 423, "base": false}, {"name": "이스트", "g": 36, "base": false}, {"name": "제빵개량제", "g": 9, "base": false}, {"name": "소금", "g": 18, "base": false}, {"name": "마가린", "g": 162, "base": false}, {"name": "탈지분유", "g": 18, "base": false}, {"name": "달걀", "g": 135, "base": false}, {"name": "설탕", "g": 144, "base": false}], "fills": [{"name": "중력분", "kind": "토핑", "g": 300}, {"name": "설탕", "kind": "토핑", "g": 180}, {"name": "마가린", "kind": "토핑", "g": 150}, {"name": "땅콩버터", "kind": "토핑", "g": 46}, {"name": "달걀", "kind": "토핑", "g": 30}, {"name": "물엿", "kind": "토핑", "g": 30}, {"name": "탈지분유", "kind": "토핑", "g": 10}, {"name": "베이킹파우더", "kind": "토핑", "g": 6}, {"name": "소금", "kind": "토핑", "g": 3}], "division": {"mode": "weight", "weight": 50, "count": 6, "perPan": null}, "ferm": {"t1": "", "tm1": "", "h1": "", "t2": "", "tm2": "", "h2": ""}, "bake": {"top": "", "bottom": "", "time": "", "pan": "", "conv": false, "steam": false, "steamDetail": ""}, "steps": []}, {"id": "r4", "category": "제빵", "name": "우유식빵", "method": "스트레이트법", "doughTemp": 27, "ings": [{"name": "강력분", "g": 1200, "base": true}, {"name": "우유", "g": 480, "base": false}, {"name": "물", "g": 348, "base": false}, {"name": "이스트", "g": 48, "base": false}, {"name": "제빵개량제", "g": 12, "base": false}, {"name": "소금", "g": 24, "base": false}, {"name": "설탕", "g": 60, "base": false}, {"name": "쇼트닝", "g": 48, "base": false}], "fills": [], "division": {"mode": "weight", "weight": 180, "count": 6, "perPan": 3}, "ferm": {"t1": "", "tm1": "", "h1": "", "t2": "", "tm2": "", "h2": ""}, "bake": {"top": "", "bottom": "", "time": "", "pan": "식빵팬", "conv": false, "steam": false, "steamDetail": ""}, "steps": []}];
+const METHODS = {
+  jeppang:['스트레이트법','비상스트레이트법','스펀지법(스펀지/도우)','비상스펀지법','액종법','오토리즈','직접입력'],
+  jeggwa:['크림법','별립법','공립법','시퐁법','블렌딩법','1단계법','직접입력']
+};
+function todayStr(){const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())}`;}
+function uid(p){return p+Math.random().toString(36).slice(2,7);}
+function catKey(k){return k==='제과'?'jeggwa':'jeppang';}
+function clone(o){return JSON.parse(JSON.stringify(o));}
+
+function defFields(r){return {category:r.category,name:r.name,method:r.method,doughTemp:r.doughTemp,
+  ings:r.ings,fills:r.fills,division:r.division,ferm:r.ferm,bake:r.bake,steps:r.steps};}
+
+let DB = SEED.map(r=>{const c=clone(r);c.versions=[{id:uid('v'),date:todayStr(),memo:'시드 등록',snap:clone(defFields(r))}];c.reviews=[];c.lastEdited=todayStr();return c;});
+let currentId=null, cat='jeppang', divMode='weight', waterManual=false;
+let ings=[], fills=[], steps=[];
+
+/* ===== 리스트 ===== */
+function divSummary(d){
+  if(d.mode==='free') return '자유성형';
+  if(d.mode==='count') return `${d.count}등분`;
+  if(d.perPan) return `분할 ${d.weight}g ×${d.perPan} (식빵)`;
+  return `분할 ${d.weight}g`;
+}
+function renderList(){
+  const q=((document.getElementById('searchBox')||{}).value||'').trim().toLowerCase();
+  const tb=document.getElementById('listBody'); tb.innerHTML='';
+  const list=DB.filter(r=> !q
+    || (r.name||'').toLowerCase().includes(q)
+    || (r.method||'').toLowerCase().includes(q)
+    || (r.category||'').includes(q));
+  if(!list.length){ tb.innerHTML='<p class="hint" style="text-align:center;padding:36px 0">'
+    + (q?'검색 결과가 없어.':'레시피가 없어. ＋ 새 레시피로 시작해.') + '</p>'; return; }
+  list.forEach(r=>{
+    const c=catKey(r.category);
+    const dough=r.ings.reduce((s,x)=>s+(x.g||0),0);
+    const card=document.createElement('div'); card.className='list-card'; card.onclick=()=>openRecipe(r.id);
+    card.innerHTML=`
+      <div class="lc-top">
+        <span class="badge ${c}">${r.category}</span>
+        <span class="lc-name">${r.name||'(이름 없음)'}</span>
+        <span class="lc-method">${r.method||''}</span>
+      </div>
+      <div class="lc-meta">
+        <span class="chip">반죽 ${Math.round(dough)}g</span>
+        <span class="chip">${divSummary(r.division)}</span>
+        ${r.fills.length?`<span class="chip">충전·토핑 ${r.fills.length}</span>`:''}
+        ${(r.reviews&&r.reviews.length)?`<span class="chip">후기 ${r.reviews.length}</span>`:''}
+        ${r.doughTemp?`<span class="chip">반죽온도 ${r.doughTemp}℃</span>`:''}
+      </div>
+      <div class="lc-foot"><span>버전 ${r.versions.length}개</span><span>마지막 수정 ${r.lastEdited}</span></div>`;
+    tb.appendChild(card);
+  });
+}
+function showList(){ document.getElementById('recordView').classList.add('hide');
+  document.getElementById('listView').classList.remove('hide'); renderList(); window.scrollTo(0,0); }
+
+/* ===== 새 레시피 ===== */
+function newRecipe(){
+  const r={id:uid('r'),category:'제빵',name:'',method:'스트레이트법',doughTemp:27,
+    ings:[{name:'강력분',g:0,base:true}],fills:[],
+    division:{mode:'weight',weight:200,count:6,perPan:null},
+    ferm:{t1:'',tm1:'',h1:'',t2:'',tm2:'',h2:''},
+    bake:{top:'',bottom:'',time:'',pan:'',conv:false,steam:false,steamDetail:''},steps:[],
+    versions:[],reviews:[],lastEdited:todayStr()};
+  DB.unshift(r); openRecipe(r.id);
+}
+
+/* ===== 기록 뷰 열기 ===== */
+function openRecipe(id){
+  currentId=id; const r=DB.find(x=>x.id===id);
+  fillForm(r);
+  document.getElementById('listView').classList.add('hide');
+  document.getElementById('recordView').classList.remove('hide');
+  window.scrollTo(0,0);
+}
+function fillForm(r){
+  cat=catKey(r.category);
+  setCatUI(cat);
+  buildMethodOptions(cat, r.method);
+  document.getElementById('recipeName').value=r.name||'';
+  document.getElementById('recTitle').textContent=r.name||'새 레시피';
+  document.getElementById('targetDough').value=r.doughTemp||27;
+  ings=clone(r.ings); fills=clone(r.fills); steps=clone(r.steps&&r.steps.length?r.steps:[{time:'',body:''}]);
+  renderIng(); renderFill(); renderSteps();
+  document.getElementById('fillDetails').open = fills.length>0;
+  // 분할
+  divMode=r.division.mode;
+  document.getElementById('divWeight').value=r.division.weight||200;
+  document.getElementById('divCount').value=r.division.count||6;
+  document.getElementById('divPerPan').value=r.division.perPan||'';
+  setDivModeUI(divMode);
+  // 발효
+  const f=r.ferm;
+  setVal('ferm1Temp',f.t1);setVal('ferm1Time',f.tm1);setVal('ferm1Hum',f.h1);
+  setVal('ferm2Temp',f.t2);setVal('ferm2Time',f.tm2);setVal('ferm2Hum',f.h2);
+  // 굽기
+  const b=r.bake;
+  setVal('topTemp',b.top);setVal('bottomTemp',b.bottom);setVal('bakeTime',b.time);setVal('pan',b.pan);
+  document.getElementById('convection').checked=!!b.conv; convHint();
+  document.getElementById('steam').checked=!!b.steam; steamToggle();
+  setVal('steamDetail',b.steamDetail);
+  // 스케일 초기화 (그날 값)
+  document.getElementById('targetTotal').value=''; document.getElementById('ratio').value='';
+  document.getElementById('scaleResult').innerHTML=''; scaledIngs=null;
+  waterManual=false;
+  updateFormulaTag(); syncSpongeFields(); recalcAll();
+  renderVersions();
+  draftPhotos=[]; renderDraftThumbs();
+  document.getElementById('reviewNote').value=''; renderReviews();
+}
+function setVal(id,v){const el=document.getElementById(id); if(el) el.value=(v===null||v===undefined)?'':v;}
+
+/* ===== 폼 읽기 → 레시피 정의 ===== */
+function readForm(){
+  return {
+    category: cat==='jeggwa'?'제과':'제빵',
+    name: document.getElementById('recipeName').value.trim(),
+    method: document.getElementById('method').value,
+    doughTemp: parseFloat(document.getElementById('targetDough').value)||null,
+    ings: clone(ings), fills: clone(fills),
+    division:{mode:divMode, weight:parseFloat(document.getElementById('divWeight').value)||null,
+      count:parseFloat(document.getElementById('divCount').value)||null,
+      perPan:parseFloat(document.getElementById('divPerPan').value)||null},
+    ferm:{t1:gv('ferm1Temp'),tm1:gv('ferm1Time'),h1:gv('ferm1Hum'),
+      t2:gv('ferm2Temp'),tm2:gv('ferm2Time'),h2:gv('ferm2Hum')},
+    bake:{top:gv('topTemp'),bottom:gv('bottomTemp'),time:gv('bakeTime'),pan:gv('pan'),
+      conv:document.getElementById('convection').checked,steam:document.getElementById('steam').checked,
+      steamDetail:gv('steamDetail')},
+    steps: clone(steps.filter(s=>s.time!==''||s.body!==''))
+  };
+}
+function gv(id){const el=document.getElementById(id);return el?el.value:'';}
+
+/* ===== 버전 저장/불러오기/삭제 ===== */
+function saveVersion(){
+  const r=DB.find(x=>x.id===currentId); if(!r) return;
+  const def=readForm();
+  Object.assign(r,def);                 // 작업 상태를 레시피에 반영
+  const memo=document.getElementById('verMemo').value.trim();
+  r.versions.unshift({id:uid('v'),date:todayStr(),memo:memo,snap:clone(def)});
+  r.lastEdited=todayStr();
+  document.getElementById('verMemo').value='';
+  document.getElementById('recTitle').textContent=r.name||'새 레시피';
+  renderVersions();
+  flash('저장됨 · 버전 추가');
+}
+function renderVersions(){
+  const r=DB.find(x=>x.id===currentId); const el=document.getElementById('verList'); el.innerHTML='';
+  if(!r||!r.versions.length){ el.innerHTML='<p class="hint">아직 저장된 버전이 없어.</p>'; return; }
+  r.versions.forEach(v=>{
+    const d=document.createElement('div'); d.className='ver';
+    d.innerHTML=`<span class="vdate">${v.date}</span>
+      <span class="vmemo">${v.memo?v.memo:'<span class="empty">메모 없음</span>'}</span>
+      <span class="vact">
+        <button class="vbtn" onclick="loadVersion('${v.id}')">불러오기</button>
+        <button class="vbtn danger" onclick="deleteVersion('${v.id}')">삭제</button>
+      </span>`;
+    el.appendChild(d);
+  });
+}
+function loadVersion(vid){
+  const r=DB.find(x=>x.id===currentId); const v=r.versions.find(x=>x.id===vid); if(!v) return;
+  const merged=clone(r); Object.assign(merged, clone(v.snap)); fillForm(merged);
+  flash('이 버전을 불러왔어 (저장 전까진 적용 안 됨)');
+}
+function deleteVersion(vid){
+  const r=DB.find(x=>x.id===currentId);
+  r.versions=r.versions.filter(x=>x.id!==vid);
+  renderVersions();
+}
+let flashT;
+function flash(msg){
+  let el=document.getElementById('flash');
+  if(!el){el=document.createElement('div');el.id='flash';
+    el.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:50;opacity:0;transition:opacity .2s';
+    document.body.appendChild(el);}
+  el.textContent=msg; el.style.opacity='1'; clearTimeout(flashT);
+  flashT=setTimeout(()=>el.style.opacity='0',1600);
+}
+
+/* ===== 카테고리 / 제법 ===== */
+function setCatUI(c){
+  document.body.classList.toggle('cat-jeppang', c==='jeppang');
+  document.getElementById('btnJeppang').classList.toggle('on', c==='jeppang');
+  document.getElementById('btnJeggwa').classList.toggle('on', c==='jeggwa');
+}
+function setCat(c){ cat=c; setCatUI(c); buildMethodOptions(c); updateFormulaTag(); syncSpongeFields(); recalcAll(); }
+function buildMethodOptions(c, selected){
+  const sel=document.getElementById('method'); const opts=METHODS[c].slice();
+  if(selected && !opts.includes(selected)) opts.unshift(selected);
+  sel.innerHTML=opts.map(o=>`<option ${o===selected?'selected':''}>${o}</option>`).join('');
+}
+function togglePct(){ document.body.classList.toggle('show-pct', document.getElementById('pctToggle').checked); renderPct(); }
+function isSponge(){ return (document.getElementById('method').value||'').includes('스펀지'); }
+function updateFormulaTag(){ document.getElementById('formulaTag').textContent = isSponge()?'×4 (스펀지법)':'×3'; }
+function syncSpongeFields(){ const s=cat==='jeppang'&&isSponge();
+  document.getElementById('spongeWrap').style.display=s?'block':'none';
+  document.getElementById('f_spongeWrap').style.display=s?'block':'none'; }
+function onMethodChange(){ syncSpongeFields(); updateFormulaTag();
+  const m=document.getElementById('method').value; if(m.includes('비상')) document.getElementById('targetDough').value=30;
+  calcWater(); calcFriction(); }
+function onNameInput(){ document.getElementById('recTitle').textContent=document.getElementById('recipeName').value||'새 레시피'; }
+
+/* ===== 재료 ===== */
+function renderIng(){
+  const tb=document.getElementById('ingBody'); tb.innerHTML='';
+  ings.forEach((it,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><input type="text" value="${it.name}" oninput="ings[${i}].name=this.value;onIngName()"></td>
+      <td class="num"><input class="num" type="number" value="${it.g}" oninput="ings[${i}].g=parseFloat(this.value)||0;recalcAll()"></td>
+      <td class="pct-col num" id="pct-${i}">–</td>
+      <td><span class="baseflag ${it.base?'is-base':''}" onclick="setBase(${i})">${it.base?'● 기준':'기준'}</span></td>
+      <td><button class="del" onclick="delIng(${i})">×</button></td>`;
+    tb.appendChild(tr);
+  });
+  renderPct();
+}
+function addIng(){ ings.push({name:'',g:0,base:false}); renderIng(); }
+function delIng(i){ ings.splice(i,1); renderIng(); recalcAll(); }
+function setBase(i){ ings.forEach((x,j)=>x.base=(j===i)); renderIng(); recalcAll(); }
+function onIngName(){ if(!waterManual) autoWater(); }
+function totalG(){ return ings.reduce((s,x)=>s+(x.g||0),0); }
+function baseG(){ const b=ings.find(x=>x.base); return b?b.g:0; }
+function renderPct(){ const bg=baseG();
+  ings.forEach((it,i)=>{const el=document.getElementById('pct-'+i);if(!el)return;
+    el.textContent=bg>0?(it.g/bg*100).toFixed(1)+'%':'–';}); }
+
+/* ===== 충전물·토핑 ===== */
+function renderFill(){
+  const tb=document.getElementById('fillBody'); tb.innerHTML='';
+  fills.forEach((f,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><input type="text" value="${f.name}" oninput="fills[${i}].name=this.value;syncScaleFills()"></td>
+      <td><select onchange="fills[${i}].kind=this.value;syncScaleFills()">
+        <option ${f.kind==='충전물'?'selected':''}>충전물</option>
+        <option ${f.kind==='토핑'?'selected':''}>토핑</option></select></td>
+      <td class="num"><input class="num" type="number" value="${f.g}" oninput="fills[${i}].g=parseFloat(this.value)||0;syncScaleFills()"></td>
+      <td><button class="del" onclick="delFill(${i})">×</button></td>`;
+    tb.appendChild(tr);
+  });
+  syncScaleFills();
+}
+function addFill(){ fills.push({name:'',kind:'충전물',g:0}); renderFill(); }
+function delFill(i){ fills.splice(i,1); renderFill(); }
+
+/* ===== 물량/물온도 ===== */
+function autoWater(){
+  const w=ings.find(x=>x.name&&x.name.includes('물'));
+  const el=document.getElementById('waterAmt'),note=document.getElementById('waterAuto');
+  if(w){el.value=w.g;note.textContent='(재료 ‘'+w.name+'’ 자동)';}else note.textContent='(자동 인식 안 됨)';
+}
+function markWaterManual(){ waterManual=true; document.getElementById('waterAuto').textContent='(직접 입력)'; }
+function v(id){const el=document.getElementById(id);return el?(parseFloat(el.value)||0):0;}
+function calcWater(){
+  const target=v('targetDough'),room=v('roomTemp'),flour=v('flourTemp'),fric=v('friction'),tap=v('tapTemp'),water=v('waterAmt');
+  let use,formula;
+  if(isSponge()){const sp=v('spongeTemp');use=target*4-(room+flour+fric+sp);
+    formula=`희망 ${target}×4 − (실내 ${room} + 밀가루 ${flour} + 마찰 ${fric} + 스펀지 ${sp})`;}
+  else{use=target*3-(room+flour+fric);formula=`희망 ${target}×3 − (실내 ${room} + 밀가루 ${flour} + 마찰 ${fric})`;}
+  document.getElementById('useWater').textContent=use.toFixed(1)+'℃';
+  document.getElementById('waterFormula').textContent=formula+' = '+use.toFixed(1)+'℃';
+  let ice='–'; if(water>0&&use<tap)ice=(water*(tap-use)/(80+tap)).toFixed(0)+'g'; else if(use>=tap)ice='필요 없음';
+  document.getElementById('iceAmt').textContent=ice;
+}
+function calcFriction(){
+  const room=v('f_room'),flour=v('f_flour'),water=v('f_water'),res=v('f_result');
+  let fric; if(isSponge()){const sp=v('f_sponge');fric=res*4-(room+flour+water+sp);}else fric=res*3-(room+flour+water);
+  document.getElementById('frictionOut').textContent=fric.toFixed(1);
+}
+function applyFriction(){document.getElementById('friction').value=document.getElementById('frictionOut').textContent;calcWater();}
+
+/* ===== 스케일 ===== */
+let scaledIngs=null;
+function guardG(g){if(g<=0)return '0';if(g<0.5)return '<1g';return Math.round(g).toString();}
+function doScale(ratio){
+  if(!isFinite(ratio)||ratio<=0){document.getElementById('scaleResult').innerHTML='';scaledIngs=null;return;}
+  scaledIngs=ings.map(x=>({...x,g:x.g*ratio}));
+  let rows=ings.map(x=>`<tr><td>${x.name||'—'}</td><td class="num">${x.g}</td>
+    <td class="num" style="color:var(--accent);font-weight:600">${guardG(x.g*ratio)}</td></tr>`).join('');
+  let fillRows=fills.length?fills.map(f=>`<tr><td>${f.name||'—'} <span class="fixed-tag">${f.kind} 고정</span></td>
+    <td class="num">${f.g}</td><td class="num">${f.g}</td></tr>`).join(''):'';
+  const nt=totalG()*ratio;
+  document.getElementById('scaleResult').innerHTML=`
+    <table style="margin-top:10px"><thead><tr><th>재료</th><th class="num">기준 g</th><th class="num">스케일 g (×${ratio.toFixed(2)})</th></tr></thead>
+    <tbody>${rows}${fillRows}</tbody></table>
+    <div class="total-bar"><span>스케일 합계(반죽)</span><b>${Math.round(nt)} g</b></div>`;
+  calcDivide(nt);
+}
+function syncScaleFills(){const r=v('ratio');if(r>0)doScale(r);}
+function scaleByTotal(){const t=v('targetTotal'),c=totalG();if(t>0&&c>0){const r=t/c;document.getElementById('ratio').value=r.toFixed(3);doScale(r);}}
+function scaleByRatio(){const r=v('ratio'),c=totalG();document.getElementById('targetTotal').value=r>0?Math.round(c*r):'';doScale(r);}
+function applyScaleAsBase(){
+  if(!scaledIngs){alert('먼저 목표량이나 배율을 입력해.');return;}
+  ings=scaledIngs.map(x=>({...x,g:Math.round(x.g)}));scaledIngs=null;
+  document.getElementById('targetTotal').value='';document.getElementById('ratio').value='';
+  document.getElementById('scaleResult').innerHTML='';renderIng();recalcAll();
+}
+
+/* ===== 분할 ===== */
+function setDivModeUI(m){
+  document.querySelectorAll('#divSeg button').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+  document.getElementById('divWeightWrap').style.display=m==='weight'?'block':'none';
+  document.getElementById('divPerPanWrap').style.display=m==='weight'?'block':'none';
+  document.getElementById('divCountWrap').style.display=m==='count'?'block':'none';
+  calcDivide();
+}
+function setDivMode(m){ divMode=m; setDivModeUI(m); }
+function calcDivide(forceTotal){
+  const total=(typeof forceTotal==='number')?forceTotal:(scaledIngs?totalG()*v('ratio'):totalG());
+  const out=document.getElementById('divOut');
+  if(divMode==='free'){ out.textContent='자유성형 — 분할 계산 없음 (짤주머니·팬 기준)'; return; }
+  if(total<=0){ out.textContent='반죽 합계가 0이야.'; return; }
+  if(divMode==='weight'){
+    const w=v('divWeight'); if(w<=0){out.textContent='분할 무게를 입력해.';return;}
+    const perPan=v('divPerPan');
+    if(perPan>0){
+      const pans=Math.floor(total/(w*perPan)); const rest=total-pans*w*perPan;
+      out.innerHTML=`총 <b>${Math.round(total)}g</b> · 분할 ${w}g ×${perPan} = <b>식빵 ${pans}개</b>`
+        +(rest>0?` &nbsp;·&nbsp; 자투리 <b>${Math.round(rest)}g</b>`:' · 자투리 없음');
+    }else{
+      const n=Math.floor(total/w),rest=total-n*w;
+      out.innerHTML=`총 <b>${Math.round(total)}g</b> ÷ ${w}g = <b>${n}개</b>`
+        +(rest>0?` &nbsp;·&nbsp; 자투리 <b>${Math.round(rest)}g</b>`:' · 자투리 없음');
+    }
+  }else{
+    const n=v('divCount'); if(n<=0){out.textContent='개수를 입력해.';return;}
+    out.innerHTML=`총 <b>${Math.round(total)}g</b> ÷ ${n}개 = <b>1개 ${Math.round(total/n)}g</b>`;
+  }
+}
+
+/* ===== 굽기 토글 ===== */
+function convHint(){document.getElementById('convNote').classList.toggle('hide',!document.getElementById('convection').checked);}
+function steamToggle(){document.getElementById('steamWrap').style.display=document.getElementById('steam').checked?'block':'none';}
+
+/* ===== 타임라인 ===== */
+function renderSteps(){
+  const tb=document.getElementById('tlBody'); tb.innerHTML='';
+  steps.forEach((s,i)=>{
+    const d=document.createElement('div'); d.className='tl-step';
+    d.innerHTML=`<div class="tl-dot"></div>
+      <div class="tl-time"><input type="number" placeholder="분" value="${s.time}" oninput="steps[${i}].time=this.value"></div>
+      <div class="tl-body"><textarea placeholder="작업 방식" oninput="steps[${i}].body=this.value">${s.body}</textarea></div>
+      <button class="del" onclick="delStep(${i})">×</button>`;
+    tb.appendChild(d);
+  });
+}
+function addStep(){steps.push({time:'',body:''});renderSteps();}
+function delStep(i){steps.splice(i,1);if(!steps.length)steps.push({time:'',body:''});renderSteps();}
+
+/* ===== 재계산 ===== */
+function recalcAll(){
+  document.getElementById('totalG').textContent=Math.round(totalG());
+  renderPct(); if(!waterManual)autoWater(); calcWater(); calcFriction();
+  const r=v('ratio'); if(r>0)doScale(r); else calcDivide();
+}
+
+/* ===== 후기 · 사진 ===== */
+let draftPhotos=[];
+function onPhotoPick(e){
+  const files=[...e.target.files];
+  files.forEach(f=>{ const rd=new FileReader();
+    rd.onload=()=>{ draftPhotos.push(rd.result); renderDraftThumbs(); };
+    rd.readAsDataURL(f); });
+  e.target.value='';
+}
+function renderDraftThumbs(){
+  const el=document.getElementById('draftThumbs'); el.innerHTML='';
+  draftPhotos.forEach((p,i)=>{ const d=document.createElement('div'); d.className='thumb';
+    d.innerHTML=`<img src="${p}"><button class="thumb-del" onclick="draftPhotos.splice(${i},1);renderDraftThumbs()">×</button>`;
+    el.appendChild(d); });
+}
+function addReview(){
+  const r=DB.find(x=>x.id===currentId); if(!r) return;
+  const note=document.getElementById('reviewNote').value.trim();
+  if(!draftPhotos.length && !note){ alert('사진이나 메모를 넣어줘.'); return; }
+  r.reviews.unshift({id:uid('rv'),date:todayStr(),note:note,photos:draftPhotos.slice()});
+  r.lastEdited=todayStr();
+  draftPhotos=[]; document.getElementById('reviewNote').value='';
+  renderDraftThumbs(); renderReviews(); flash('후기 추가됨');
+}
+function renderReviews(){
+  const r=DB.find(x=>x.id===currentId); const el=document.getElementById('reviewList'); el.innerHTML='';
+  if(!r||!r.reviews.length){ el.innerHTML='<p class="hint">아직 후기가 없어.</p>'; return; }
+  r.reviews.forEach(rv=>{
+    const d=document.createElement('div'); d.className='review';
+    const thumbs=rv.photos.map(p=>`<img src="${p}" class="rthumb">`).join('');
+    d.innerHTML=`<div class="rv-top"><span class="vdate">${rv.date}</span>
+      <button class="vbtn danger" onclick="deleteReview('${rv.id}')">삭제</button></div>
+      <div class="thumbs">${thumbs}</div>
+      ${rv.note?`<div class="rv-note">${rv.note}</div>`:''}`;
+    el.appendChild(d);
+  });
+}
+function deleteReview(id){ const r=DB.find(x=>x.id===currentId); r.reviews=r.reviews.filter(x=>x.id!==id); renderReviews(); }
+
+/* ===== init ===== */
+showList();
+</script>
+</body>
+</html>
