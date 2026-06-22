@@ -178,6 +178,34 @@
           <tbody id="fillBody"></tbody></table>
         <button class="addrow" onclick="addFill()">＋ 충전물·토핑 추가</button>
       </details>
+      <details id="hydDetails">
+        <summary>수화율(Hydration) 계산 — 사워도우/르방</summary>
+        <p class="hint">르방까지 반영한 총 수화율(표준 = 물 ÷ 곡물가루). ‘재료에서 불러오기’는 곡물가루·전분류와 물·바시나주·우유 등 액체를 자동 합산해. 코코아·분유·견과류가루는 가루 아님이라 제외. 못 잡은 건 직접 고치면 돼.</p>
+        <button class="ghost" style="margin-bottom:10px" onclick="loadHydration()">재료에서 불러오기</button>
+        <div class="row">
+          <div><label>밀가루 총량 (g)</label><input type="number" id="hydFlour" value="0" oninput="calcHydration()"></div>
+          <div><label>물·액체 총량 (g)</label><input type="number" id="hydWater" value="0" oninput="calcHydration()"></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div><label>르방(스타터) 양 (g)</label><input type="number" id="hydLevain" value="0" oninput="calcHydration()"></div>
+          <div><label>르방 수화율 (%)</label><input type="number" id="hydLevainH" value="100" oninput="calcHydration()"></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div><label>또는 르방 배합비로 입력 (비율·g 아무거나)</label>
+            <div style="display:flex;gap:6px;align-items:flex-end">
+              <div style="flex:1"><span class="note">밀가루</span><input type="number" id="hydRatioF" value="1" step="0.5" oninput="ratioToHyd()"></div>
+              <span style="color:var(--ink-soft);padding-bottom:9px">:</span>
+              <div style="flex:1"><span class="note">물</span><input type="number" id="hydRatioW" value="1" step="0.5" oninput="ratioToHyd()"></div>
+            </div>
+            <span class="note">밀가루칸·물칸에 비율(1, 2…)이든 실제 g(50, 25…)이든 넣으면 됨 → 수화율 자동. 예: 밀50·물25=50%, 밀1·물2=200%.</span>
+          </div>
+        </div>
+        <div class="calc-out">
+          <span class="pill">수화율(총) <b id="hydOut">–</b></span>
+          <span class="pill">본반죽만(르방 제외) <b id="hydOutDough">–</b></span>
+          <div class="hint" id="hydFormula" style="margin-top:8px"></div>
+        </div>
+      </details>
     </div>
 
     <!-- 2. 물온도 -->
@@ -587,6 +615,38 @@ function calcFriction(){
   document.getElementById('frictionOut').textContent=fric.toFixed(1);
 }
 function applyFriction(){document.getElementById('friction').value=document.getElementById('frictionOut').textContent;calcWater();}
+
+/* ===== 수화율(Hydration) ===== */
+function loadHydration(){
+  const flourKW=['강력분','박력분','중력분','밀가루','통밀','호밀','세몰리나','듀럼','스펠트','T65','T55','T80','옥수수','쌀','현미','전분','녹말','타피오카','메밀','귀리','오트'];
+  const waterKW=['물','바시나주','우유','두유','요거트','요구르트','생크림'];
+  const levainKW=['르방','사워','스타터','levain','종'];
+  let flour=0,water=0,levain=0;
+  ings.forEach(it=>{const n=it.name||'';
+    if(levainKW.some(k=>n.includes(k))) levain+=it.g||0;
+    else if(flourKW.some(k=>n.includes(k))) flour+=it.g||0;
+    else if(waterKW.some(k=>n.includes(k))) water+=it.g||0;});
+  document.getElementById('hydFlour').value=Math.round(flour);
+  document.getElementById('hydWater').value=Math.round(water);
+  document.getElementById('hydLevain').value=Math.round(levain);
+  calcHydration();
+  flash('재료에서 합산했어 — 분류 확인하고 직접 고쳐도 돼');
+}
+function ratioToHyd(){
+  const f=v('hydRatioF'), w=v('hydRatioW');
+  if(f>0){ document.getElementById('hydLevainH').value=+(w/f*100).toFixed(1); calcHydration(); }
+}
+function calcHydration(){
+  const flour=v('hydFlour'),water=v('hydWater'),lev=v('hydLevain'),levH=v('hydLevainH');
+  const levFlour=lev>0?Math.round(lev/(1+levH/100)):0, levWater=lev-levFlour;
+  const totFlour=flour+levFlour, totWater=water+levWater;
+  const hyd=totFlour>0?totWater/totFlour*100:0, hydDough=flour>0?water/flour*100:0;
+  document.getElementById('hydOut').textContent=totFlour>0?hyd.toFixed(1)+'%':'–';
+  document.getElementById('hydOutDough').textContent=flour>0?hydDough.toFixed(1)+'%':'–';
+  let f=`총물 ${Math.round(totWater)}g ÷ 총밀가루 ${Math.round(totFlour)}g × 100`;
+  if(lev>0) f+=` · 르방 ${lev}g = 밀가루 ${levFlour}g + 물 ${levWater}g (계산상, 르방 수화율 ${levH}%)`;
+  document.getElementById('hydFormula').textContent=f;
+}
 
 /* ===== 스케일 ===== */
 let scaledIngs=null;
