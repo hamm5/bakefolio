@@ -43,6 +43,13 @@
   .baseflag.is-base{color:var(--accent);font-weight:700}
   .del{border:0;background:transparent;color:var(--line-strong);cursor:pointer;font-size:16px;padding:0 4px}
   .del:hover{color:var(--warn)}
+  .mv{border:0;background:transparent;color:var(--ink-soft);cursor:pointer;font-size:13px;padding:0 2px;line-height:1}
+  .mv:hover{color:var(--accent)}
+  .row-act{white-space:nowrap;text-align:right}
+  .drag{cursor:grab;color:var(--line-strong);font-size:15px;padding:0 3px;user-select:none}
+  .drag:hover{color:var(--accent)} .drag:active{cursor:grabbing}
+  tr.drag-over td{box-shadow:inset 0 2px 0 0 var(--accent)}
+  .tl-step.drag-over,.grp-step.drag-over{box-shadow:inset 0 2px 0 0 var(--accent);border-radius:6px}
   .addrow{margin-top:8px;border:1px dashed var(--line-strong);background:transparent;color:var(--accent);
     padding:8px;border-radius:8px;width:100%;cursor:pointer;font-size:13px;font-family:inherit}
   .toggle{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--ink);cursor:pointer}
@@ -72,6 +79,13 @@
     background:transparent;font-size:13px;flex:1;padding:2px 0}
   .usel{font-family:inherit;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:4px;width:100%;background:#fff}
   .amt-na{color:var(--ink-soft);text-align:right;font-size:12px}
+  /* 로그인 게이트 */
+  #authGate{position:fixed;inset:0;background:var(--bg);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+  .auth-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px;width:min(360px,92vw);
+    box-shadow:0 10px 34px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:10px}
+  .auth-card h1{margin:0;font-size:22px;color:var(--accent)}
+  .auth-card input{padding:11px;border:1px solid var(--line-strong);border-radius:8px;font-size:14px;font-family:inherit}
+  .auth-card button{width:100%}
   .formula-tag{font-size:11px;color:var(--ink-soft);background:#F1E9DB;border-radius:6px;padding:2px 8px;margin-left:auto}
   .seg-mini{display:inline-flex;background:#F1E9DB;border-radius:8px;padding:2px;gap:2px;margin-bottom:8px}
   .seg-mini button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font-size:12px;
@@ -139,16 +153,49 @@
 </head>
 <body class="cat-jeppang">
 <div id="sbStatus" style="padding:8px 14px;font-size:13px;font-family:monospace;white-space:pre-wrap;display:none"></div>
+
+<!-- 로그인 게이트 -->
+<div id="authGate">
+  <div class="auth-card">
+    <h1>🥐 bakefolio</h1>
+    <p class="hint">내 레시피를 저장·동기화하려면 로그인하세요.</p>
+    <input type="email" id="authEmail" placeholder="이메일" autocomplete="email">
+    <input type="password" id="authPw" placeholder="비밀번호 (7자 이상)" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="primary" onclick="doLogin()">로그인</button>
+    <button class="ghost" onclick="doSignup()">회원가입</button>
+    <p class="hint" id="authMsg" style="min-height:16px"></p>
+  </div>
+</div>
+
 <div class="wrap">
 
   <!-- ============ 리스트 뷰 ============ -->
   <div id="listView">
     <div class="appbar">
       <h1>내 레시피</h1>
-      <button class="primary" style="margin-left:auto" onclick="newRecipe()">＋ 새 레시피</button>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="ghost" onclick="showFeed()">🌐 공유 후기</button>
+        <button class="ghost" id="logoutBtn" style="display:none" onclick="doLogout()">로그아웃</button>
+        <button class="primary" onclick="newRecipe()">＋ 새 레시피</button>
+      </div>
+    </div>
+    <div class="seg-mini" id="catFilter">
+      <button data-f="all" class="on" onclick="setListFilter('all')">전체</button>
+      <button data-f="제빵" onclick="setListFilter('제빵')">제빵</button>
+      <button data-f="제과" onclick="setListFilter('제과')">제과</button>
     </div>
     <input type="text" id="searchBox" class="search" placeholder="레시피 검색 (이름·제법)" oninput="renderList()">
     <div id="listBody"></div>
+  </div>
+
+  <!-- ============ 공유 후기 피드 ============ -->
+  <div id="feedView" class="hide">
+    <div class="appbar">
+      <button class="back" onclick="showList()">← 목록</button>
+      <h1>🌐 공유 후기</h1>
+    </div>
+    <p class="hint">로그인한 사람들이 공개한 후기를 모아 봐요.</p>
+    <div id="feedBody"></div>
   </div>
 
   <!-- ============ 기록 뷰 ============ -->
@@ -372,6 +419,7 @@
       </label>
       <div id="draftThumbs" class="thumbs"></div>
       <textarea id="reviewNote" style="margin-top:10px" placeholder="어땠는지 한 줄 (예: 2차 발효 더 길게 할걸)"></textarea>
+      <label class="toggle" style="margin-top:10px"><input type="checkbox" id="reviewPublic"> 🌐 공개 후기로 올리기 (다른 사람도 볼 수 있어요)</label>
       <button class="primary" style="width:100%;margin-top:10px" onclick="addReview()">후기 추가</button>
       <div id="reviewList" style="margin-top:16px"></div>
     </div>
@@ -407,34 +455,87 @@ const sb = (window.SUPABASE_URL && window.SUPABASE_ANON_KEY && window.supabase
   ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY) : null;
 
 function seedDB(){return SEED.map(r=>{const c=clone(r);c.versions=[{id:uid('v'),date:todayStr(),memo:'시드 등록',snap:clone(defFields(r))}];c.reviews=[];c.lastEdited=todayStr();return c;});}
+// 계정마다 고유 id로 시드 복제 (PK 충돌 방지)
+function freshSeeds(){return SEED.map(r=>{const c=clone(r);c.id=uid('r');c.versions=[{id:uid('v'),date:todayStr(),memo:'시드 등록',snap:clone(defFields(r))}];c.reviews=[];c.lastEdited=todayStr();return c;});}
 
 // 레시피 한 건을 통째로(jsonb) 저장 — 변경 지점마다 호출
 async function saveRecipe(r){
-  if(!sb) return;
-  const {error}=await sb.from('recipes').upsert({id:r.id,data:r,updated_at:new Date().toISOString()});
+  if(!sb||!currentUser) return;
+  const {error}=await sb.from('recipes').upsert({id:r.id,data:r,updated_at:new Date().toISOString(),user_id:currentUser.id});
   if(error){console.error('저장 실패',error); setStatus('⚠ 저장 실패: '+(error.message||'')+' ['+(error.code||'')+']','#fdd');}
-  else setStatus('✅ Supabase 저장됨 ('+r.id+')','#dfd',true);
+  else setStatus('✅ 저장됨','#dfd',true);
 }
 let DB = [];
 let currentId=null, cat='jeppang', divMode='weight', waterManual=false, storePlace='실온';
+let currentUser=null;
 
-async function initDB(){
-  if(sb){
-    setStatus('⏳ Supabase 연결 중…','#eef');
-    try{
-      const {data,error}=await sb.from('recipes').select('data').order('updated_at',{ascending:false});
-      if(error) throw error;
-      DB = data.map(row=>row.data);
-      if(!DB.length){ DB = seedDB(); await Promise.all(DB.map(saveRecipe)); } // 최초 1회 시드 업로드
-      setStatus('✅ Supabase 연결됨 · 레시피 '+DB.length+'개 로드','#dfd',true);
-    }catch(e){
-      console.error('Supabase 로드 실패 → 로컬 시드로 대체',e);
-      setStatus('⚠ Supabase 로드 실패: '+(e.message||e)+' ['+(e.code||'')+'] — 로컬 시드 표시','#fdd');
-      DB = seedDB();
+/* ===== 인증 ===== */
+function authMsg(m){ const el=document.getElementById('authMsg'); if(el) el.textContent=m||''; }
+function showAuth(){
+  document.getElementById('authGate').style.display='flex';
+  document.getElementById('listView').classList.add('hide');
+  document.getElementById('recordView').classList.add('hide');
+  document.getElementById('logoutBtn').style.display='none';
+}
+function hideAuth(){ document.getElementById('authGate').style.display='none'; }
+async function doSignup(){
+  const email=document.getElementById('authEmail').value.trim(), pw=document.getElementById('authPw').value;
+  if(!email){authMsg('이메일을 입력해.');return;}
+  if(pw.length<7){authMsg('비밀번호는 7자 이상이어야 해.');return;}
+  authMsg('가입 중…');
+  const {data,error}=await sb.auth.signUp({email,password:pw});
+  if(error){
+    if(/already registered|already exists/i.test(error.message)){ // 이미 가입됨 → 로그인 시도
+      authMsg('이미 가입된 이메일 — 로그인 중…');
+      const {error:e2}=await sb.auth.signInWithPassword({email,password:pw});
+      if(e2) authMsg('이미 가입된 이메일이야. 비밀번호가 맞는지 확인해줘.');
+      return;
     }
-  }else{
+    authMsg('가입 실패: '+error.message); return;
+  }
+  if(data.session){ authMsg('가입 완료!'); }              // 이메일 확인 OFF → 바로 로그인(onAuthStateChange)
+  else { // 확인 메일 설정이 켜져 있으면 자동 로그인 시도
+    const {error:e2}=await sb.auth.signInWithPassword({email,password:pw});
+    if(e2) authMsg('가입됨. 로그인 버튼을 눌러줘. (이메일 확인 설정이 켜져 있을 수 있어요)');
+  }
+}
+async function doLogin(){
+  const email=document.getElementById('authEmail').value.trim(), pw=document.getElementById('authPw').value;
+  if(!email||!pw){authMsg('이메일과 비밀번호를 입력해.');return;}
+  authMsg('로그인 중…');
+  const {error}=await sb.auth.signInWithPassword({email,password:pw});
+  if(error){authMsg('로그인 실패: '+error.message);return;}
+  // onAuthStateChange 가 enterApp 처리
+}
+async function doLogout(){ if(sb) await sb.auth.signOut(); }
+
+async function initApp(){
+  if(!sb){ // config 없음 → 로컬 시드 모드 (로그인 없이)
     setStatus('ℹ config.js 미설정 → 로컬 시드 모드 (저장 안 됨)','#ffd');
-    DB = seedDB(); // config.js 없음/미설정 → 인메모리 모드
+    hideAuth(); DB=seedDB(); showList(); return;
+  }
+  const {data:{session}}=await sb.auth.getSession();
+  if(session&&session.user){ currentUser=session.user; enterApp(); } else showAuth();
+  sb.auth.onAuthStateChange((event,sess)=>{
+    const u=sess&&sess.user;
+    if(u){ if(!currentUser||currentUser.id!==u.id){ currentUser=u; enterApp(); } }
+    else { currentUser=null; showAuth(); }
+  });
+}
+async function enterApp(){
+  hideAuth();
+  document.getElementById('logoutBtn').style.display='inline-block';
+  setStatus('⏳ 불러오는 중…','#eef');
+  try{
+    const {data,error}=await sb.from('recipes').select('data').order('updated_at',{ascending:false});
+    if(error) throw error;
+    DB=data.map(row=>row.data);
+    if(!DB.length){ DB=freshSeeds(); await Promise.all(DB.map(saveRecipe)); } // 첫 로그인 → 내 계정에 시드 복제
+    setStatus('✅ '+(currentUser.email||'로그인')+' · 레시피 '+DB.length+'개','#dfd',true);
+  }catch(e){
+    console.error('로드 실패',e);
+    setStatus('⚠ 로드 실패: '+(e.message||e)+' ['+(e.code||'')+']','#fdd');
+    DB=[];
   }
   showList();
 }
@@ -447,13 +548,21 @@ function divSummary(d){
   if(d.perPan) return `분할 ${d.weight}g ×${d.perPan} (식빵)`;
   return `분할 ${d.weight}g`;
 }
+let listFilter='all';
+function setListFilter(f){ listFilter=f;
+  document.querySelectorAll('#catFilter button').forEach(b=>b.classList.toggle('on',b.dataset.f===f));
+  renderList();
+}
 function renderList(){
   const q=((document.getElementById('searchBox')||{}).value||'').trim().toLowerCase();
   const tb=document.getElementById('listBody'); tb.innerHTML='';
-  const list=DB.filter(r=> !q
-    || (r.name||'').toLowerCase().includes(q)
-    || (r.method||'').toLowerCase().includes(q)
-    || (r.category||'').includes(q));
+  const list=DB.filter(r=>{
+    if(listFilter!=='all' && r.category!==listFilter) return false;
+    return !q
+      || (r.name||'').toLowerCase().includes(q)
+      || (r.method||'').toLowerCase().includes(q)
+      || (r.category||'').includes(q);
+  });
   if(!list.length){ tb.innerHTML='<p class="hint" style="text-align:center;padding:36px 0">'
     + (q?'검색 결과가 없어.':'레시피가 없어. ＋ 새 레시피로 시작해.') + '</p>'; return; }
   list.forEach(r=>{
@@ -470,7 +579,6 @@ function renderList(){
         <span class="chip">반죽 ${Math.round(dough)}g</span>
         <span class="chip">${divSummary(r.division)}</span>
         ${r.fills.length?`<span class="chip">충전·토핑 ${r.fills.length}</span>`:''}
-        ${(r.reviews&&r.reviews.length)?`<span class="chip">후기 ${r.reviews.length}</span>`:''}
         ${r.doughTemp?`<span class="chip">반죽온도 ${r.doughTemp}℃</span>`:''}
       </div>
       <div class="lc-foot"><span>버전 ${r.versions.length}개</span><span>마지막 수정 ${r.lastEdited}</span></div>`;
@@ -478,6 +586,7 @@ function renderList(){
   });
 }
 function showList(){ document.getElementById('recordView').classList.add('hide');
+  document.getElementById('feedView').classList.add('hide');
   document.getElementById('listView').classList.remove('hide'); renderList(); window.scrollTo(0,0); }
 
 /* ===== 새 레시피 ===== */
@@ -539,7 +648,9 @@ function fillForm(r){
   updateFormulaTag(); syncSpongeFields(); recalcAll();
   renderVersions();
   draftPhotos=[]; renderDraftThumbs();
-  document.getElementById('reviewNote').value=''; renderReviews();
+  document.getElementById('reviewNote').value='';
+  const rp=document.getElementById('reviewPublic'); if(rp) rp.checked=false;
+  renderReviews();
 }
 function setVal(id,v){const el=document.getElementById(id); if(el) el.value=(v===null||v===undefined)?'':v;}
 
@@ -643,6 +754,9 @@ function onNameInput(){ document.getElementById('recTitle').textContent=document
 const UNITS=['g','ml','개','ts','Ts','소량','약간']; // ts=작은술, Ts=큰술
 function isGram(x){ return !x.divider && (x.unit||'g')==='g'; }            // 반죽 합계·B.P%에 들어가는 건 g만
 function hasNum(x){ return !x.divider && x.unit!=='소량' && x.unit!=='약간'; } // 수치가 있는 단위
+// 베이커스% 기준(anchor)은 가루류에만 — 설탕·달걀 등엔 기준 안 붙음
+const FLOUR_KW=['강력분','박력분','중력분','밀가루','쌀가루','쌀','통밀','호밀','옥수수분말','옥수수','세몰리나','듀럼','스펠트','메밀','귀리','오트','전분','녹말','타피오카','현미','T65','T55','T80'];
+function isFlour(name){ const n=name||''; return FLOUR_KW.some(k=>n.includes(k)); }
 function scaleAmt(x,ratio){                                                 // 스케일 시 환산·반올림
   if(!hasNum(x)) return x.unit||'';
   const u=x.unit||'g', val=(x.g||0)*ratio;
@@ -658,10 +772,14 @@ function renderIng(){
   const tb=document.getElementById('ingBody'); tb.innerHTML='';
   ings.forEach((it,i)=>{
     const tr=document.createElement('tr');
+    const actions=`<td class="row-act">
+        <span class="drag" draggable="true" ondragstart="dragIdx=${i}" title="드래그로 이동">⠿</span>
+        <button class="mv" onclick="moveIng(${i},-1)" title="위로">↑</button>
+        <button class="mv" onclick="moveIng(${i},1)" title="아래로">↓</button>
+        <button class="del" onclick="delIng(${i})">×</button></td>`;
     if(it.divider){
       tr.className='grp-row';
-      tr.innerHTML=`<td colspan="5"><input type="text" value="${it.label||''}" placeholder="그룹 이름 (예: 시트 반죽)" oninput="ings[${i}].label=this.value"></td>
-        <td><button class="del" onclick="delIng(${i})">×</button></td>`;
+      tr.innerHTML=`<td colspan="5"><input type="text" value="${it.label||''}" placeholder="그룹 이름 (예: 시트 반죽)" oninput="ings[${i}].label=this.value"></td>${actions}`;
     }else{
       const na=!hasNum(it);
       tr.innerHTML=`
@@ -669,9 +787,12 @@ function renderIng(){
         <td class="num">${na?'<span class="amt-na">—</span>':`<input class="num" type="number" value="${it.g}" oninput="ings[${i}].g=parseFloat(this.value)||0;recalcAll()">`}</td>
         <td><select class="usel" onchange="ings[${i}].unit=this.value;renderIng();recalcAll()">${unitOpts(it.unit)}</select></td>
         <td class="pct-col num" id="pct-${i}">–</td>
-        <td>${isGram(it)?`<span class="baseflag ${it.base?'is-base':''}" onclick="setBase(${i})">${it.base?'● 기준':'기준'}</span>`:''}</td>
-        <td><button class="del" onclick="delIng(${i})">×</button></td>`;
+        <td>${(isGram(it)&&isFlour(it.name))?`<span class="baseflag ${it.base?'is-base':''}" onclick="setBase(${i})">${it.base?'● 기준':'기준'}</span>`:''}</td>
+        ${actions}`;
     }
+    tr.ondragover=e=>{e.preventDefault();tr.classList.add('drag-over');};
+    tr.ondragleave=()=>tr.classList.remove('drag-over');
+    tr.ondrop=e=>{e.preventDefault();tr.classList.remove('drag-over');dropIng(i);};
     tb.appendChild(tr);
   });
   renderPct();
@@ -679,10 +800,20 @@ function renderIng(){
 function addIng(){ ings.push({name:'',g:0,unit:'g',base:false}); renderIng(); }
 function addIngGroup(){ ings.push({divider:true,label:''}); renderIng(); }
 function delIng(i){ ings.splice(i,1); renderIng(); recalcAll(); }
-function setBase(i){ ings.forEach((x,j)=>x.base=(j===i&&isGram(x))); renderIng(); recalcAll(); }
+function moveIng(i,dir){ const j=i+dir; if(j<0||j>=ings.length) return;
+  const t=ings[i]; ings[i]=ings[j]; ings[j]=t; renderIng(); recalcAll(); }
+let dragIdx=null;
+function dropIng(target){
+  if(dragIdx===null||dragIdx===target){ dragIdx=null; return; }
+  const item=ings[dragIdx], tgt=ings[target];
+  ings.splice(dragIdx,1);
+  ings.splice(ings.indexOf(tgt),0,item); // 드롭한 행 앞에 끼워넣기
+  dragIdx=null; renderIng(); recalcAll();
+}
+function setBase(i){ ings.forEach((x,j)=>x.base=(j===i&&isGram(x)&&isFlour(x.name))); renderIng(); recalcAll(); }
 function onIngName(){ if(!waterManual) autoWater(); }
 function totalG(){ return ings.reduce((s,x)=>s+(isGram(x)?(x.g||0):0),0); }
-function baseG(){ const b=ings.find(x=>x.base&&isGram(x)); return b?b.g:0; }
+function baseG(){ const b=ings.find(x=>x.base&&isGram(x)&&isFlour(x.name)); return b?b.g:0; }
 function renderPct(){ const bg=baseG();
   ings.forEach((it,i)=>{const el=document.getElementById('pct-'+i);if(!el)return;
     el.textContent=(bg>0&&isGram(it))?(it.g/bg*100).toFixed(1)+'%':'–';}); }
@@ -736,13 +867,12 @@ function applyFriction(){document.getElementById('friction').value=document.getE
 
 /* ===== 수화율(Hydration) ===== */
 function loadHydration(){
-  const flourKW=['강력분','박력분','중력분','밀가루','통밀','호밀','세몰리나','듀럼','스펠트','T65','T55','T80','옥수수','쌀','현미','전분','녹말','타피오카','메밀','귀리','오트'];
   const waterKW=['물','바시나주','우유','두유','요거트','요구르트','생크림'];
   const levainKW=['르방','사워','스타터','levain','종'];
   let flour=0,water=0,levain=0;
   ings.forEach(it=>{const n=it.name||''; if(!isGram(it))return;
     if(levainKW.some(k=>n.includes(k))) levain+=it.g||0;
-    else if(flourKW.some(k=>n.includes(k))) flour+=it.g||0;
+    else if(isFlour(n)) flour+=it.g||0;
     else if(waterKW.some(k=>n.includes(k))) water+=it.g||0;});
   document.getElementById('hydFlour').value=Math.round(flour);
   document.getElementById('hydWater').value=Math.round(water);
@@ -855,23 +985,39 @@ function deckToggle(){
 function renderSteps(){
   const tb=document.getElementById('tlBody'); tb.innerHTML='';
   steps.forEach((s,i)=>{
+    const act=`<span class="row-act">
+      <span class="drag" draggable="true" ondragstart="stepDragIdx=${i}" title="드래그로 이동">⠿</span>
+      <button class="mv" onclick="moveStep(${i},-1)" title="위로">↑</button>
+      <button class="mv" onclick="moveStep(${i},1)" title="아래로">↓</button>
+      <button class="del" onclick="delStep(${i})">×</button></span>`;
+    let el;
     if(s.divider){
-      const g=document.createElement('div'); g.className='grp-step';
-      g.innerHTML=`<input type="text" value="${s.label||''}" placeholder="그룹 이름 (예: 사전 준비)" oninput="steps[${i}].label=this.value">
-        <button class="del" onclick="delStep(${i})">×</button>`;
-      tb.appendChild(g); return;
+      el=document.createElement('div'); el.className='grp-step';
+      el.innerHTML=`<input type="text" value="${s.label||''}" placeholder="그룹 이름 (예: 사전 준비)" oninput="steps[${i}].label=this.value">${act}`;
+    }else{
+      el=document.createElement('div'); el.className='tl-step';
+      el.innerHTML=`<div class="tl-dot"></div>
+        <div class="tl-time"><input type="number" placeholder="분" value="${s.time}" oninput="steps[${i}].time=this.value"></div>
+        <div class="tl-body"><textarea placeholder="작업 방식" oninput="steps[${i}].body=this.value">${s.body}</textarea></div>${act}`;
     }
-    const d=document.createElement('div'); d.className='tl-step';
-    d.innerHTML=`<div class="tl-dot"></div>
-      <div class="tl-time"><input type="number" placeholder="분" value="${s.time}" oninput="steps[${i}].time=this.value"></div>
-      <div class="tl-body"><textarea placeholder="작업 방식" oninput="steps[${i}].body=this.value">${s.body}</textarea></div>
-      <button class="del" onclick="delStep(${i})">×</button>`;
-    tb.appendChild(d);
+    el.ondragover=e=>{e.preventDefault();el.classList.add('drag-over');};
+    el.ondragleave=()=>el.classList.remove('drag-over');
+    el.ondrop=e=>{e.preventDefault();el.classList.remove('drag-over');dropStep(i);};
+    tb.appendChild(el);
   });
 }
 function addStep(){steps.push({time:'',body:''});renderSteps();}
 function addStepGroup(){steps.push({divider:true,label:''});renderSteps();}
 function delStep(i){steps.splice(i,1);if(!steps.length)steps.push({time:'',body:''});renderSteps();}
+function moveStep(i,dir){const j=i+dir;if(j<0||j>=steps.length)return;const t=steps[i];steps[i]=steps[j];steps[j]=t;renderSteps();}
+let stepDragIdx=null;
+function dropStep(target){
+  if(stepDragIdx===null||stepDragIdx===target){ stepDragIdx=null; return; }
+  const item=steps[stepDragIdx], tgt=steps[target];
+  steps.splice(stepDragIdx,1);
+  steps.splice(steps.indexOf(tgt),0,item); // 드롭한 단계 앞에 끼워넣기
+  stepDragIdx=null; renderSteps();
+}
 
 /* ===== 재계산 ===== */
 function recalcAll(){
@@ -895,32 +1041,84 @@ function renderDraftThumbs(){
     d.innerHTML=`<img src="${p}"><button class="thumb-del" onclick="draftPhotos.splice(${i},1);renderDraftThumbs()">×</button>`;
     el.appendChild(d); });
 }
-function addReview(){
+// 후기 카드 한 개 (owner=본인이면 공개토글·삭제 노출)
+function reviewCard(rv, owner){
+  const d=document.createElement('div'); d.className='review';
+  const date=(rv.created_at||'').slice(0,10).replace(/-/g,'.');
+  const thumbs=(rv.photos||[]).map(p=>`<img src="${p}" class="rthumb">`).join('');
+  const badge=rv.is_public
+    ? '<span class="chip" style="background:var(--accent-soft);color:var(--accent)">🌐 공개</span>'
+    : '<span class="chip">🔒 비공개</span>';
+  const right = owner
+    ? `<span><button class="vbtn" onclick="toggleReviewPublic('${rv.id}',${rv.is_public?0:1})">${rv.is_public?'비공개로':'공개로'}</button>
+       <button class="vbtn danger" onclick="deleteReview('${rv.id}')">삭제</button></span>`
+    : `<span class="note">${rv.author||'익명'}</span>`;
+  d.innerHTML=`<div class="rv-top"><span class="vdate">${date} ${badge}</span>${right}</div>
+    <div class="thumbs">${thumbs}</div>
+    ${rv.note?`<div class="rv-note">${rv.note}</div>`:''}`;
+  return d;
+}
+async function addReview(){
+  if(!sb||!currentUser){ alert('로그인 후 사용하세요.'); return; }
   const r=DB.find(x=>x.id===currentId); if(!r) return;
   const note=document.getElementById('reviewNote').value.trim();
   if(!draftPhotos.length && !note){ alert('사진이나 메모를 넣어줘.'); return; }
-  r.reviews.unshift({id:uid('rv'),date:todayStr(),note:note,photos:draftPhotos.slice()});
-  r.lastEdited=todayStr();
-  draftPhotos=[]; document.getElementById('reviewNote').value='';
-  renderDraftThumbs(); renderReviews(); saveRecipe(r); flash('후기 추가됨');
+  const isPub=document.getElementById('reviewPublic').checked;
+  const row={id:uid('rv'),user_id:currentUser.id,recipe_id:currentId,recipe_name:r.name||'(이름 없음)',
+    category:r.category,note:note,photos:draftPhotos.slice(),is_public:isPub,
+    author:currentUser.email,created_at:new Date().toISOString()};
+  const {error}=await sb.from('reviews').insert(row);
+  if(error){ alert('후기 저장 실패: '+error.message); return; }
+  draftPhotos=[]; document.getElementById('reviewNote').value=''; document.getElementById('reviewPublic').checked=false;
+  renderDraftThumbs(); renderReviews(); flash('후기 추가됨'+(isPub?' · 공개':''));
 }
-function renderReviews(){
-  const r=DB.find(x=>x.id===currentId); const el=document.getElementById('reviewList'); el.innerHTML='';
-  if(!r||!r.reviews.length){ el.innerHTML='<p class="hint">아직 후기가 없어.</p>'; return; }
-  r.reviews.forEach(rv=>{
-    const d=document.createElement('div'); d.className='review';
-    const thumbs=rv.photos.map(p=>`<img src="${p}" class="rthumb">`).join('');
-    d.innerHTML=`<div class="rv-top"><span class="vdate">${rv.date}</span>
-      <button class="vbtn danger" onclick="deleteReview('${rv.id}')">삭제</button></div>
-      <div class="thumbs">${thumbs}</div>
-      ${rv.note?`<div class="rv-note">${rv.note}</div>`:''}`;
-    el.appendChild(d);
+async function renderReviews(){
+  const el=document.getElementById('reviewList'); if(!el) return;
+  if(!sb||!currentUser){ el.innerHTML='<p class="hint">로그인하면 후기를 남길 수 있어요.</p>'; return; }
+  el.innerHTML='<p class="hint">불러오는 중…</p>';
+  const {data,error}=await sb.from('reviews').select('*').eq('recipe_id',currentId).order('created_at',{ascending:false});
+  if(error){ el.innerHTML='<p class="hint">후기 로드 실패: '+error.message+'</p>'; return; }
+  if(!data.length){ el.innerHTML='<p class="hint">아직 후기가 없어.</p>'; return; }
+  el.innerHTML=''; data.forEach(rv=>el.appendChild(reviewCard(rv,true)));
+}
+async function toggleReviewPublic(id,pub){
+  const {error}=await sb.from('reviews').update({is_public:!!pub}).eq('id',id);
+  if(error){ alert('변경 실패: '+error.message); return; }
+  flash(pub?'공개로 전환':'비공개로 전환'); renderReviews();
+}
+async function deleteReview(id){
+  if(!confirm('이 후기를 삭제할까?')) return;
+  const {error}=await sb.from('reviews').delete().eq('id',id);
+  if(error){ alert('삭제 실패: '+error.message); return; }
+  const feedOpen=!document.getElementById('feedView').classList.contains('hide');
+  if(feedOpen) renderFeed(); else renderReviews();
+}
+/* ===== 공유 후기 피드 ===== */
+function showFeed(){
+  document.getElementById('listView').classList.add('hide');
+  document.getElementById('recordView').classList.add('hide');
+  document.getElementById('feedView').classList.remove('hide');
+  window.scrollTo(0,0); renderFeed();
+}
+async function renderFeed(){
+  const el=document.getElementById('feedBody');
+  if(!sb||!currentUser){ el.innerHTML='<p class="hint">로그인이 필요해요.</p>'; return; }
+  el.innerHTML='<p class="hint">불러오는 중…</p>';
+  const {data,error}=await sb.from('reviews').select('*').eq('is_public',true).order('created_at',{ascending:false}).limit(200);
+  if(error){ el.innerHTML='<p class="hint">로드 실패: '+error.message+'</p>'; return; }
+  if(!data.length){ el.innerHTML='<p class="hint">아직 공개 후기가 없어요. 첫 후기를 올려보세요!</p>'; return; }
+  el.innerHTML='';
+  data.forEach(rv=>{
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML=`<div class="lc-top"><span class="badge ${catKey(rv.category)}">${rv.category||''}</span>
+      <span class="lc-name">${rv.recipe_name||''}</span></div>`;
+    card.appendChild(reviewCard(rv, !!(currentUser&&rv.user_id===currentUser.id)));
+    el.appendChild(card);
   });
 }
-function deleteReview(id){ const r=DB.find(x=>x.id===currentId); r.reviews=r.reviews.filter(x=>x.id!==id); renderReviews(); saveRecipe(r); }
 
 /* ===== init ===== */
-initDB();
+initApp();
 </script>
 </body>
 </html>
