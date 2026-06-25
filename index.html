@@ -62,6 +62,16 @@
   .total-bar b{font-size:16px}
   .jeppang-only{display:none}
   body.cat-jeppang .jeppang-only{display:block}
+  .jeggwa-only{display:none}
+  body.cat-jeggwa .jeggwa-only{display:block}
+  /* 재료/과정 그룹 구분자 */
+  .grp-row td{background:#F6EFE2;padding:6px 8px}
+  .grp-row input{font-weight:700;color:var(--accent);border:0;background:transparent;width:100%;font-size:13px}
+  .grp-step{display:flex;align-items:center;gap:8px;margin:14px 0 6px}
+  .grp-step input{font-weight:700;color:var(--accent);border:0;border-bottom:1px dashed var(--line-strong);
+    background:transparent;font-size:13px;flex:1;padding:2px 0}
+  .usel{font-family:inherit;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:4px;width:100%;background:#fff}
+  .amt-na{color:var(--ink-soft);text-align:right;font-size:12px}
   .formula-tag{font-size:11px;color:var(--ink-soft);background:#F1E9DB;border-radius:6px;padding:2px 8px;margin-left:auto}
   .seg-mini{display:inline-flex;background:#F1E9DB;border-radius:8px;padding:2px;gap:2px;margin-bottom:8px}
   .seg-mini button{border:0;background:transparent;padding:5px 12px;border-radius:6px;font-size:12px;
@@ -123,8 +133,12 @@
   .rv-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
   .rv-note{font-size:13px;margin-top:8px}
 </style>
+<!-- Supabase 클라이언트 + 연결 설정 (config.js 는 .gitignore) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js" onerror="console.warn('config.js 없음 → 로컬 시드 모드로 동작')"></script>
 </head>
 <body class="cat-jeppang">
+<div id="sbStatus" style="padding:8px 14px;font-size:13px;font-family:monospace;white-space:pre-wrap;display:none"></div>
 <div class="wrap">
 
   <!-- ============ 리스트 뷰 ============ -->
@@ -165,16 +179,19 @@
     <div class="card">
       <h2><span class="step">1</span> 재료 (반죽)</h2>
       <table><thead><tr>
-        <th style="width:40%">재료명</th><th class="num" style="width:22%">무게(g)</th>
-        <th class="pct-col num" style="width:18%">B.P %</th><th style="width:16%"></th><th style="width:4%"></th>
+        <th style="width:34%">재료명</th><th class="num" style="width:16%">양</th><th style="width:16%">단위</th>
+        <th class="pct-col num" style="width:14%">B.P %</th><th style="width:14%"></th><th style="width:6%"></th>
       </tr></thead><tbody id="ingBody"></tbody></table>
-      <button class="addrow" onclick="addIng()">＋ 재료 추가</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="addrow" style="flex:1" onclick="addIng()">＋ 재료 추가</button>
+        <button class="addrow" style="flex:1" onclick="addIngGroup()">＋ 그룹 구분자</button>
+      </div>
       <div class="total-bar"><span>반죽 합계</span><b><span id="totalG">0</span> g</b></div>
       <p class="hint">‘기준’을 누르면 그 재료가 100% 기준(보통 밀가루)이 돼.</p>
       <details id="fillDetails">
         <summary>충전물·토핑 (고정 g · 스케일 안 됨)</summary>
-        <table><thead><tr><th style="width:46%">이름</th><th style="width:30%">구분</th>
-          <th class="num" style="width:16%">g</th><th style="width:4%"></th></tr></thead>
+        <table><thead><tr><th style="width:34%">이름</th><th style="width:22%">구분</th>
+          <th class="num" style="width:14%">양</th><th style="width:18%">단위</th><th style="width:8%"></th></tr></thead>
           <tbody id="fillBody"></tbody></table>
         <button class="addrow" onclick="addFill()">＋ 충전물·토핑 추가</button>
       </details>
@@ -294,9 +311,12 @@
     <!-- 6. 굽기 -->
     <div class="card">
       <h2><span class="step">6</span> 굽기</h2>
-      <div class="row">
-        <div><label>윗불 (℃)</label><input type="number" id="topTemp" placeholder="예) 180"></div>
-        <div><label>아랫불 (℃)</label><input type="number" id="bottomTemp" placeholder="예) 160"></div>
+      <label class="toggle"><input type="checkbox" id="deckOven" onchange="deckToggle()"> 데크오븐 (윗불·아랫불 분리)</label>
+      <div class="row" style="margin-top:12px">
+        <div><label>예열 온도 (℃)</label><input type="number" id="preheat" placeholder="예) 190"></div>
+        <div id="singleTempWrap"><label>굽기 온도 (℃)</label><input type="number" id="ovenTemp" placeholder="예) 170"></div>
+        <div id="topTempWrap" style="display:none"><label>윗불 (℃)</label><input type="number" id="topTemp" placeholder="예) 180"></div>
+        <div id="bottomTempWrap" style="display:none"><label>아랫불 (℃)</label><input type="number" id="bottomTemp" placeholder="예) 160"></div>
         <div><label>시간 (분)</label><input type="number" id="bakeTime" placeholder="예) 25"></div>
       </div>
       <div class="row" style="margin-top:12px;align-items:center">
@@ -310,12 +330,30 @@
 
     <!-- 7. 만드는 방법 -->
     <div class="card">
-      <h2><span class="step">7</span> 만드는 방법 (타임라인)</h2>
+      <h2><span class="step">7</span> 만드는 방법</h2>
+      <p class="hint">‘분’은 비워도 돼. 제과는 그룹(사전 준비·만드는 방법 등)으로 묶어 쓰면 편해.</p>
       <div id="tlBody"></div>
-      <button class="addrow" onclick="addStep()">＋ 단계 추가</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="addrow" style="flex:1" onclick="addStep()">＋ 단계 추가</button>
+        <button class="addrow" style="flex:1" onclick="addStepGroup()">＋ 그룹 구분자</button>
+      </div>
     </div>
 
-    <!-- 8. 버전 저장 -->
+    <!-- 8. 보관 -->
+    <div class="card">
+      <h2><span class="step">8</span> 보관 방법</h2>
+      <div class="seg-mini" id="storeSeg">
+        <button data-place="실온" onclick="setStore('실온')">실온</button>
+        <button data-place="냉장" onclick="setStore('냉장')">냉장</button>
+        <button data-place="냉동" onclick="setStore('냉동')">냉동</button>
+      </div>
+      <div class="row">
+        <div><label>보관 기간</label><input type="text" id="storePeriod" placeholder="예) 3일 / 2주"></div>
+        <div style="flex:2"><label>메모</label><input type="text" id="storeNote" placeholder="예) 밀폐용기 · 냉동 시 소분"></div>
+      </div>
+    </div>
+
+    <!-- 9. 버전 저장 -->
     <div class="card">
       <h2><span class="step">✓</span> 버전 저장</h2>
       <label>변경 메모 (이번에 뭘 바꿨는지)</label>
@@ -353,10 +391,53 @@ function catKey(k){return k==='제과'?'jeggwa':'jeppang';}
 function clone(o){return JSON.parse(JSON.stringify(o));}
 
 function defFields(r){return {category:r.category,name:r.name,method:r.method,doughTemp:r.doughTemp,
-  ings:r.ings,fills:r.fills,division:r.division,ferm:r.ferm,bake:r.bake,steps:r.steps};}
+  ings:r.ings,fills:r.fills,division:r.division,ferm:r.ferm,bake:r.bake,storage:r.storage,steps:r.steps};}
 
-let DB = SEED.map(r=>{const c=clone(r);c.versions=[{id:uid('v'),date:todayStr(),memo:'시드 등록',snap:clone(defFields(r))}];c.reviews=[];c.lastEdited=todayStr();return c;});
-let currentId=null, cat='jeppang', divMode='weight', waterManual=false;
+/* ===== Supabase 연동 ===== */
+let sbStatusT;
+function setStatus(msg,color,autoHide){
+  const el=document.getElementById('sbStatus'); if(!el) return;
+  el.style.display='block'; el.style.background=color||'#eee'; el.style.color='#111';
+  el.textContent=msg;
+  clearTimeout(sbStatusT);
+  if(autoHide) sbStatusT=setTimeout(()=>{el.style.display='none';},2500); // 성공 메시지는 잠깐만
+}
+const sb = (window.SUPABASE_URL && window.SUPABASE_ANON_KEY && window.supabase
+  && !String(window.SUPABASE_URL).includes('여기에') && !String(window.SUPABASE_URL).includes('YOUR-PROJECT'))
+  ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY) : null;
+
+function seedDB(){return SEED.map(r=>{const c=clone(r);c.versions=[{id:uid('v'),date:todayStr(),memo:'시드 등록',snap:clone(defFields(r))}];c.reviews=[];c.lastEdited=todayStr();return c;});}
+
+// 레시피 한 건을 통째로(jsonb) 저장 — 변경 지점마다 호출
+async function saveRecipe(r){
+  if(!sb) return;
+  const {error}=await sb.from('recipes').upsert({id:r.id,data:r,updated_at:new Date().toISOString()});
+  if(error){console.error('저장 실패',error); setStatus('⚠ 저장 실패: '+(error.message||'')+' ['+(error.code||'')+']','#fdd');}
+  else setStatus('✅ Supabase 저장됨 ('+r.id+')','#dfd',true);
+}
+let DB = [];
+let currentId=null, cat='jeppang', divMode='weight', waterManual=false, storePlace='실온';
+
+async function initDB(){
+  if(sb){
+    setStatus('⏳ Supabase 연결 중…','#eef');
+    try{
+      const {data,error}=await sb.from('recipes').select('data').order('updated_at',{ascending:false});
+      if(error) throw error;
+      DB = data.map(row=>row.data);
+      if(!DB.length){ DB = seedDB(); await Promise.all(DB.map(saveRecipe)); } // 최초 1회 시드 업로드
+      setStatus('✅ Supabase 연결됨 · 레시피 '+DB.length+'개 로드','#dfd',true);
+    }catch(e){
+      console.error('Supabase 로드 실패 → 로컬 시드로 대체',e);
+      setStatus('⚠ Supabase 로드 실패: '+(e.message||e)+' ['+(e.code||'')+'] — 로컬 시드 표시','#fdd');
+      DB = seedDB();
+    }
+  }else{
+    setStatus('ℹ config.js 미설정 → 로컬 시드 모드 (저장 안 됨)','#ffd');
+    DB = seedDB(); // config.js 없음/미설정 → 인메모리 모드
+  }
+  showList();
+}
 let ings=[], fills=[], steps=[];
 
 /* ===== 리스트 ===== */
@@ -377,7 +458,7 @@ function renderList(){
     + (q?'검색 결과가 없어.':'레시피가 없어. ＋ 새 레시피로 시작해.') + '</p>'; return; }
   list.forEach(r=>{
     const c=catKey(r.category);
-    const dough=r.ings.reduce((s,x)=>s+(x.g||0),0);
+    const dough=r.ings.reduce((s,x)=>s+(isGram(x)?(x.g||0):0),0);
     const card=document.createElement('div'); card.className='list-card'; card.onclick=()=>openRecipe(r.id);
     card.innerHTML=`
       <div class="lc-top">
@@ -402,12 +483,13 @@ function showList(){ document.getElementById('recordView').classList.add('hide')
 /* ===== 새 레시피 ===== */
 function newRecipe(){
   const r={id:uid('r'),category:'제빵',name:'',method:'스트레이트법',doughTemp:27,
-    ings:[{name:'강력분',g:0,base:true}],fills:[],
+    ings:[{name:'강력분',g:0,unit:'g',base:true}],fills:[],
     division:{mode:'weight',weight:200,count:6,perPan:null},
     ferm:{t1:'',tm1:'',h1:'',t2:'',tm2:'',h2:''},
-    bake:{top:'',bottom:'',time:'',pan:'',conv:false,steam:false,steamDetail:''},steps:[],
+    bake:{top:'',bottom:'',time:'',pan:'',conv:false,steam:false,steamDetail:'',preheat:'',single:'',deck:false},
+    storage:{place:'실온',period:'',note:''},steps:[],
     versions:[],reviews:[],lastEdited:todayStr()};
-  DB.unshift(r); openRecipe(r.id);
+  DB.unshift(r); saveRecipe(r); openRecipe(r.id);
 }
 
 /* ===== 기록 뷰 열기 ===== */
@@ -441,9 +523,15 @@ function fillForm(r){
   // 굽기
   const b=r.bake;
   setVal('topTemp',b.top);setVal('bottomTemp',b.bottom);setVal('bakeTime',b.time);setVal('pan',b.pan);
+  setVal('preheat',b.preheat);setVal('ovenTemp',b.single);
+  document.getElementById('deckOven').checked=!!b.deck; deckToggle();
   document.getElementById('convection').checked=!!b.conv; convHint();
   document.getElementById('steam').checked=!!b.steam; steamToggle();
   setVal('steamDetail',b.steamDetail);
+  // 보관
+  const st=r.storage||{place:'실온',period:'',note:''};
+  storePlace=st.place||'실온'; setStoreUI(storePlace);
+  setVal('storePeriod',st.period);setVal('storeNote',st.note);
   // 스케일 초기화 (그날 값)
   document.getElementById('targetTotal').value=''; document.getElementById('ratio').value='';
   document.getElementById('scaleResult').innerHTML=''; scaledIngs=null;
@@ -470,8 +558,10 @@ function readForm(){
       t2:gv('ferm2Temp'),tm2:gv('ferm2Time'),h2:gv('ferm2Hum')},
     bake:{top:gv('topTemp'),bottom:gv('bottomTemp'),time:gv('bakeTime'),pan:gv('pan'),
       conv:document.getElementById('convection').checked,steam:document.getElementById('steam').checked,
-      steamDetail:gv('steamDetail')},
-    steps: clone(steps.filter(s=>s.time!==''||s.body!==''))
+      steamDetail:gv('steamDetail'),preheat:gv('preheat'),single:gv('ovenTemp'),
+      deck:document.getElementById('deckOven').checked},
+    storage:{place:storePlace,period:gv('storePeriod'),note:gv('storeNote')},
+    steps: clone(steps.filter(s=>s.divider||s.time!==''||s.body!==''))
   };
 }
 function gv(id){const el=document.getElementById(id);return el?el.value:'';}
@@ -487,6 +577,7 @@ function saveVersion(){
   document.getElementById('verMemo').value='';
   document.getElementById('recTitle').textContent=r.name||'새 레시피';
   renderVersions();
+  saveRecipe(r);
   flash('저장됨 · 버전 추가');
 }
 function renderVersions(){
@@ -512,6 +603,7 @@ function deleteVersion(vid){
   const r=DB.find(x=>x.id===currentId);
   r.versions=r.versions.filter(x=>x.id!==vid);
   renderVersions();
+  saveRecipe(r);
 }
 let flashT;
 function flash(msg){
@@ -526,6 +618,7 @@ function flash(msg){
 /* ===== 카테고리 / 제법 ===== */
 function setCatUI(c){
   document.body.classList.toggle('cat-jeppang', c==='jeppang');
+  document.body.classList.toggle('cat-jeggwa', c==='jeggwa');
   document.getElementById('btnJeppang').classList.toggle('on', c==='jeppang');
   document.getElementById('btnJeggwa').classList.toggle('on', c==='jeggwa');
 }
@@ -546,48 +639,73 @@ function onMethodChange(){ syncSpongeFields(); updateFormulaTag();
   calcWater(); calcFriction(); }
 function onNameInput(){ document.getElementById('recTitle').textContent=document.getElementById('recipeName').value||'새 레시피'; }
 
+/* ===== 단위 ===== */
+const UNITS=['g','ml','개','ts','Ts','소량','약간']; // ts=작은술, Ts=큰술
+function isGram(x){ return !x.divider && (x.unit||'g')==='g'; }            // 반죽 합계·B.P%에 들어가는 건 g만
+function hasNum(x){ return !x.divider && x.unit!=='소량' && x.unit!=='약간'; } // 수치가 있는 단위
+function scaleAmt(x,ratio){                                                 // 스케일 시 환산·반올림
+  if(!hasNum(x)) return x.unit||'';
+  const u=x.unit||'g', val=(x.g||0)*ratio;
+  if(u==='개') return Math.max(1,Math.round(val))+'개';
+  if(u==='ts'||u==='Ts') return (Math.round(val*4)/4)+(u==='ts'?'작은술':'큰술');
+  if(u==='ml') return Math.round(val)+'ml';
+  return guardG(val)+'g';
+}
+function unitOpts(cur){ return UNITS.map(u=>`<option ${(cur||'g')===u?'selected':''}>${u}</option>`).join(''); }
+
 /* ===== 재료 ===== */
 function renderIng(){
   const tb=document.getElementById('ingBody'); tb.innerHTML='';
   ings.forEach((it,i)=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`
-      <td><input type="text" value="${it.name}" oninput="ings[${i}].name=this.value;onIngName()"></td>
-      <td class="num"><input class="num" type="number" value="${it.g}" oninput="ings[${i}].g=parseFloat(this.value)||0;recalcAll()"></td>
-      <td class="pct-col num" id="pct-${i}">–</td>
-      <td><span class="baseflag ${it.base?'is-base':''}" onclick="setBase(${i})">${it.base?'● 기준':'기준'}</span></td>
-      <td><button class="del" onclick="delIng(${i})">×</button></td>`;
+    if(it.divider){
+      tr.className='grp-row';
+      tr.innerHTML=`<td colspan="5"><input type="text" value="${it.label||''}" placeholder="그룹 이름 (예: 시트 반죽)" oninput="ings[${i}].label=this.value"></td>
+        <td><button class="del" onclick="delIng(${i})">×</button></td>`;
+    }else{
+      const na=!hasNum(it);
+      tr.innerHTML=`
+        <td><input type="text" value="${it.name}" oninput="ings[${i}].name=this.value;onIngName()"></td>
+        <td class="num">${na?'<span class="amt-na">—</span>':`<input class="num" type="number" value="${it.g}" oninput="ings[${i}].g=parseFloat(this.value)||0;recalcAll()">`}</td>
+        <td><select class="usel" onchange="ings[${i}].unit=this.value;renderIng();recalcAll()">${unitOpts(it.unit)}</select></td>
+        <td class="pct-col num" id="pct-${i}">–</td>
+        <td>${isGram(it)?`<span class="baseflag ${it.base?'is-base':''}" onclick="setBase(${i})">${it.base?'● 기준':'기준'}</span>`:''}</td>
+        <td><button class="del" onclick="delIng(${i})">×</button></td>`;
+    }
     tb.appendChild(tr);
   });
   renderPct();
 }
-function addIng(){ ings.push({name:'',g:0,base:false}); renderIng(); }
+function addIng(){ ings.push({name:'',g:0,unit:'g',base:false}); renderIng(); }
+function addIngGroup(){ ings.push({divider:true,label:''}); renderIng(); }
 function delIng(i){ ings.splice(i,1); renderIng(); recalcAll(); }
-function setBase(i){ ings.forEach((x,j)=>x.base=(j===i)); renderIng(); recalcAll(); }
+function setBase(i){ ings.forEach((x,j)=>x.base=(j===i&&isGram(x))); renderIng(); recalcAll(); }
 function onIngName(){ if(!waterManual) autoWater(); }
-function totalG(){ return ings.reduce((s,x)=>s+(x.g||0),0); }
-function baseG(){ const b=ings.find(x=>x.base); return b?b.g:0; }
+function totalG(){ return ings.reduce((s,x)=>s+(isGram(x)?(x.g||0):0),0); }
+function baseG(){ const b=ings.find(x=>x.base&&isGram(x)); return b?b.g:0; }
 function renderPct(){ const bg=baseG();
   ings.forEach((it,i)=>{const el=document.getElementById('pct-'+i);if(!el)return;
-    el.textContent=bg>0?(it.g/bg*100).toFixed(1)+'%':'–';}); }
+    el.textContent=(bg>0&&isGram(it))?(it.g/bg*100).toFixed(1)+'%':'–';}); }
 
 /* ===== 충전물·토핑 ===== */
 function renderFill(){
   const tb=document.getElementById('fillBody'); tb.innerHTML='';
   fills.forEach((f,i)=>{
     const tr=document.createElement('tr');
+    const na=!hasNum(f);
     tr.innerHTML=`
       <td><input type="text" value="${f.name}" oninput="fills[${i}].name=this.value;syncScaleFills()"></td>
       <td><select onchange="fills[${i}].kind=this.value;syncScaleFills()">
         <option ${f.kind==='충전물'?'selected':''}>충전물</option>
         <option ${f.kind==='토핑'?'selected':''}>토핑</option></select></td>
-      <td class="num"><input class="num" type="number" value="${f.g}" oninput="fills[${i}].g=parseFloat(this.value)||0;syncScaleFills()"></td>
+      <td class="num">${na?'<span class="amt-na">—</span>':`<input class="num" type="number" value="${f.g}" oninput="fills[${i}].g=parseFloat(this.value)||0;syncScaleFills()">`}</td>
+      <td><select class="usel" onchange="fills[${i}].unit=this.value;renderFill()">${unitOpts(f.unit)}</select></td>
       <td><button class="del" onclick="delFill(${i})">×</button></td>`;
     tb.appendChild(tr);
   });
   syncScaleFills();
 }
-function addFill(){ fills.push({name:'',kind:'충전물',g:0}); renderFill(); }
+function addFill(){ fills.push({name:'',kind:'충전물',g:0,unit:'g'}); renderFill(); }
 function delFill(i){ fills.splice(i,1); renderFill(); }
 
 /* ===== 물량/물온도 ===== */
@@ -622,7 +740,7 @@ function loadHydration(){
   const waterKW=['물','바시나주','우유','두유','요거트','요구르트','생크림'];
   const levainKW=['르방','사워','스타터','levain','종'];
   let flour=0,water=0,levain=0;
-  ings.forEach(it=>{const n=it.name||'';
+  ings.forEach(it=>{const n=it.name||''; if(!isGram(it))return;
     if(levainKW.some(k=>n.includes(k))) levain+=it.g||0;
     else if(flourKW.some(k=>n.includes(k))) flour+=it.g||0;
     else if(waterKW.some(k=>n.includes(k))) water+=it.g||0;});
@@ -651,18 +769,25 @@ function calcHydration(){
 /* ===== 스케일 ===== */
 let scaledIngs=null;
 function guardG(g){if(g<=0)return '0';if(g<0.5)return '<1g';return Math.round(g).toString();}
+function fmtAmt(x){
+  if(!hasNum(x)) return x.unit||'';
+  const u=x.unit||'g', g=x.g||0;
+  return g+(u==='ts'?'작은술':u==='Ts'?'큰술':u);
+}
 function doScale(ratio){
   if(!isFinite(ratio)||ratio<=0){document.getElementById('scaleResult').innerHTML='';scaledIngs=null;return;}
-  scaledIngs=ings.map(x=>({...x,g:x.g*ratio}));
-  let rows=ings.map(x=>`<tr><td>${x.name||'—'}</td><td class="num">${x.g}</td>
-    <td class="num" style="color:var(--accent);font-weight:600">${guardG(x.g*ratio)}</td></tr>`).join('');
+  scaledIngs=ings.map(x=>(x.divider||!hasNum(x))?{...x}:{...x,g:(x.g||0)*ratio});
+  let rows=ings.map(x=> x.divider
+    ? `<tr class="grp-row"><td colspan="3">${x.label||'그룹'}</td></tr>`
+    : `<tr><td>${x.name||'—'}</td><td class="num">${fmtAmt(x)}</td>
+      <td class="num" style="color:var(--accent);font-weight:600">${scaleAmt(x,ratio)}</td></tr>`).join('');
   let fillRows=fills.length?fills.map(f=>`<tr><td>${f.name||'—'} <span class="fixed-tag">${f.kind} 고정</span></td>
-    <td class="num">${f.g}</td><td class="num">${f.g}</td></tr>`).join(''):'';
+    <td class="num">${fmtAmt(f)}</td><td class="num">${fmtAmt(f)}</td></tr>`).join(''):'';
   const nt=totalG()*ratio;
   document.getElementById('scaleResult').innerHTML=`
-    <table style="margin-top:10px"><thead><tr><th>재료</th><th class="num">기준 g</th><th class="num">스케일 g (×${ratio.toFixed(2)})</th></tr></thead>
+    <table style="margin-top:10px"><thead><tr><th>재료</th><th class="num">기준 양</th><th class="num">스케일 양 (×${ratio.toFixed(2)})</th></tr></thead>
     <tbody>${rows}${fillRows}</tbody></table>
-    <div class="total-bar"><span>스케일 합계(반죽)</span><b>${Math.round(nt)} g</b></div>`;
+    <div class="total-bar"><span>스케일 합계(반죽 g만)</span><b>${Math.round(nt)} g</b></div>`;
   calcDivide(nt);
 }
 function syncScaleFills(){const r=v('ratio');if(r>0)doScale(r);}
@@ -670,7 +795,12 @@ function scaleByTotal(){const t=v('targetTotal'),c=totalG();if(t>0&&c>0){const r
 function scaleByRatio(){const r=v('ratio'),c=totalG();document.getElementById('targetTotal').value=r>0?Math.round(c*r):'';doScale(r);}
 function applyScaleAsBase(){
   if(!scaledIngs){alert('먼저 목표량이나 배율을 입력해.');return;}
-  ings=scaledIngs.map(x=>({...x,g:Math.round(x.g)}));scaledIngs=null;
+  ings=scaledIngs.map(x=>{
+    if(x.divider||!hasNum(x)) return {...x};
+    const u=x.unit||'g';
+    const g=u==='개'?Math.max(1,Math.round(x.g)):(u==='ts'||u==='Ts')?Math.round(x.g*4)/4:Math.round(x.g);
+    return {...x,g};
+  });scaledIngs=null;
   document.getElementById('targetTotal').value='';document.getElementById('ratio').value='';
   document.getElementById('scaleResult').innerHTML='';renderIng();recalcAll();
 }
@@ -684,6 +814,10 @@ function setDivModeUI(m){
   calcDivide();
 }
 function setDivMode(m){ divMode=m; setDivModeUI(m); }
+
+/* ===== 보관 ===== */
+function setStoreUI(p){ document.querySelectorAll('#storeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.place===p)); }
+function setStore(p){ storePlace=p; setStoreUI(p); }
 function calcDivide(forceTotal){
   const total=(typeof forceTotal==='number')?forceTotal:(scaledIngs?totalG()*v('ratio'):totalG());
   const out=document.getElementById('divOut');
@@ -710,11 +844,23 @@ function calcDivide(forceTotal){
 /* ===== 굽기 토글 ===== */
 function convHint(){document.getElementById('convNote').classList.toggle('hide',!document.getElementById('convection').checked);}
 function steamToggle(){document.getElementById('steamWrap').style.display=document.getElementById('steam').checked?'block':'none';}
+function deckToggle(){
+  const deck=document.getElementById('deckOven').checked;
+  document.getElementById('topTempWrap').style.display=deck?'block':'none';
+  document.getElementById('bottomTempWrap').style.display=deck?'block':'none';
+  document.getElementById('singleTempWrap').style.display=deck?'none':'block';
+}
 
 /* ===== 타임라인 ===== */
 function renderSteps(){
   const tb=document.getElementById('tlBody'); tb.innerHTML='';
   steps.forEach((s,i)=>{
+    if(s.divider){
+      const g=document.createElement('div'); g.className='grp-step';
+      g.innerHTML=`<input type="text" value="${s.label||''}" placeholder="그룹 이름 (예: 사전 준비)" oninput="steps[${i}].label=this.value">
+        <button class="del" onclick="delStep(${i})">×</button>`;
+      tb.appendChild(g); return;
+    }
     const d=document.createElement('div'); d.className='tl-step';
     d.innerHTML=`<div class="tl-dot"></div>
       <div class="tl-time"><input type="number" placeholder="분" value="${s.time}" oninput="steps[${i}].time=this.value"></div>
@@ -724,6 +870,7 @@ function renderSteps(){
   });
 }
 function addStep(){steps.push({time:'',body:''});renderSteps();}
+function addStepGroup(){steps.push({divider:true,label:''});renderSteps();}
 function delStep(i){steps.splice(i,1);if(!steps.length)steps.push({time:'',body:''});renderSteps();}
 
 /* ===== 재계산 ===== */
@@ -755,7 +902,7 @@ function addReview(){
   r.reviews.unshift({id:uid('rv'),date:todayStr(),note:note,photos:draftPhotos.slice()});
   r.lastEdited=todayStr();
   draftPhotos=[]; document.getElementById('reviewNote').value='';
-  renderDraftThumbs(); renderReviews(); flash('후기 추가됨');
+  renderDraftThumbs(); renderReviews(); saveRecipe(r); flash('후기 추가됨');
 }
 function renderReviews(){
   const r=DB.find(x=>x.id===currentId); const el=document.getElementById('reviewList'); el.innerHTML='';
@@ -770,10 +917,10 @@ function renderReviews(){
     el.appendChild(d);
   });
 }
-function deleteReview(id){ const r=DB.find(x=>x.id===currentId); r.reviews=r.reviews.filter(x=>x.id!==id); renderReviews(); }
+function deleteReview(id){ const r=DB.find(x=>x.id===currentId); r.reviews=r.reviews.filter(x=>x.id!==id); renderReviews(); saveRecipe(r); }
 
 /* ===== init ===== */
-showList();
+initDB();
 </script>
 </body>
 </html>

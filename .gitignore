@@ -4,3 +4,6 @@ node_modules/
 .vscode/
 .idea/
 dist/
+
+# Supabase 키 (공개 금지 — 각자 로컬에 둠)
+config.js
