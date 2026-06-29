@@ -46,7 +46,7 @@
   .mv{border:0;background:transparent;color:var(--ink-soft);cursor:pointer;font-size:13px;padding:0 2px;line-height:1}
   .mv:hover{color:var(--accent)}
   .row-act{white-space:nowrap;text-align:right}
-  .drag{cursor:grab;color:var(--line-strong);font-size:15px;padding:0 3px;user-select:none}
+  .drag{cursor:grab;color:var(--line-strong);font-size:15px;padding:0 3px;user-select:none;touch-action:none}
   .drag:hover{color:var(--accent)} .drag:active{cursor:grabbing}
   tr.drag-over td{box-shadow:inset 0 2px 0 0 var(--accent)}
   .tl-step.drag-over,.grp-step.drag-over{box-shadow:inset 0 2px 0 0 var(--accent);border-radius:6px}
@@ -146,6 +146,23 @@
   .review:last-child{border-bottom:0}
   .rv-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
   .rv-note{font-size:13px;margin-top:8px}
+
+  /* ===== 좁은 화면(휴대폰) 대응 ===== */
+  @media (max-width:520px){
+    .wrap{padding:12px 10px 110px}
+    .card{padding:13px 12px}
+    /* 입력칸이 짜부되지 않게 폭을 절대 안 늘어나게 고정 */
+    input[type=text],input[type=number],select,textarea{font-size:16px}
+    table{font-size:13px}
+    th{padding:6px 3px}
+    td{padding:4px 3px}
+    td input{padding:7px 6px;font-size:16px}
+    .drag{font-size:18px;padding:0 6px;touch-action:none}
+    .mv{font-size:14px;padding:0 1px}
+    .del{font-size:15px;padding:0 2px}
+    .baseflag{font-size:10px}
+    .usel{font-size:13px;padding:5px 4px}
+  }
 </style>
 <!-- Supabase 클라이언트 + 연결 설정 (config.js 는 .gitignore) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1116,6 +1133,43 @@ async function renderFeed(){
     el.appendChild(card);
   });
 }
+
+/* ===== 터치 드래그(휴대폰) ===== *//* HTML5 drag&drop은 터치에서 동작 안 함 → 손가락 드래그를 직접 구현 */
+function enableTouchDrag(containerId, rowSel, onDrop){
+  const c=document.getElementById(containerId);
+  if(!c||c._tdrag) return; c._tdrag=true;
+  const idxOf=row=>[...c.children].indexOf(row);
+  let srcIdx=null, srcRow=null, lastOver=null;
+  const clearOver=()=>{ if(lastOver){lastOver.classList.remove('drag-over'); lastOver=null;} };
+  c.addEventListener('touchstart',e=>{
+    const handle=e.target.closest('.drag'); if(!handle) return;
+    srcRow=handle.closest(rowSel); if(!srcRow) return;
+    srcIdx=idxOf(srcRow); srcRow.style.opacity='.5';
+    e.preventDefault();            // 드래그 중 화면 스크롤 방지
+  },{passive:false});
+  c.addEventListener('touchmove',e=>{
+    if(srcIdx===null) return; e.preventDefault();
+    const t=e.touches[0];
+    const o=document.elementFromPoint(t.clientX,t.clientY);
+    const row=o?o.closest(rowSel):null;
+    if(row!==lastOver) clearOver();
+    if(row && row!==srcRow){ row.classList.add('drag-over'); lastOver=row; }
+  },{passive:false});
+  const finish=e=>{
+    if(srcIdx===null) return;
+    const t=e.changedTouches&&e.changedTouches[0];
+    let tgt=null;
+    if(t){ const o=document.elementFromPoint(t.clientX,t.clientY);
+           const row=o&&o.closest(rowSel); if(row) tgt=idxOf(row); }
+    clearOver(); if(srcRow) srcRow.style.opacity='';
+    const s=srcIdx; srcIdx=null; srcRow=null;
+    if(tgt!==null && tgt!==s) onDrop(s,tgt);
+  };
+  c.addEventListener('touchend',finish);
+  c.addEventListener('touchcancel',finish);
+}
+enableTouchDrag('ingBody','tr',(s,t)=>{ dragIdx=s; dropIng(t); });
+enableTouchDrag('tlBody','.tl-step,.grp-step',(s,t)=>{ stepDragIdx=s; dropStep(t); });
 
 /* ===== init ===== */
 initApp();
