@@ -99,7 +99,9 @@
 
   /* 앱바 */
   .appbar{display:flex;align-items:center;gap:10px;margin:4px 0 16px}
-  .appbar h1{font-size:18px;margin:0;letter-spacing:-.3px}
+  .appbar h1{font-size:18px;margin:0;letter-spacing:-.3px;white-space:nowrap}
+  .list-appbar{flex-wrap:wrap}
+  .hdr-actions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .back{border:1px solid var(--line-strong);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;
     font-size:13px;font-family:inherit;color:var(--ink)}
   .primary{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:10px 16px;font-size:14px;
@@ -157,11 +159,22 @@
     th{padding:6px 3px}
     td{padding:4px 3px}
     td input{padding:7px 6px;font-size:16px}
-    .drag{font-size:18px;padding:0 6px;touch-action:none}
-    .mv{font-size:14px;padding:0 1px}
+    .drag{font-size:17px;padding:0 3px;touch-action:none}
+    .mv{font-size:13px;padding:0 1px}
     .del{font-size:15px;padding:0 2px}
     .baseflag{font-size:10px}
-    .usel{font-size:13px;padding:5px 4px}
+    .usel{font-size:13px;padding:5px 3px}
+    /* 재료 테이블: 칸 너비 고정해서 이름·숫자 안 잘리게 */
+    .ing-table{table-layout:fixed}
+    .ing-table th:nth-child(1),.ing-table td:nth-child(1){width:33%}
+    .ing-table th:nth-child(2),.ing-table td:nth-child(2){width:15%}
+    .ing-table th:nth-child(3),.ing-table td:nth-child(3){width:15%}
+    .ing-table th:nth-child(5),.ing-table td:nth-child(5){width:11%}
+    .ing-table th:nth-child(6),.ing-table td:nth-child(6){width:26%}
+    .row-act{white-space:nowrap}
+    /* 헤더 버튼: 제목 한 줄 유지 + 버튼은 아래 줄에 정렬 */
+    .hdr-actions{margin-left:0;width:100%}
+    .hdr-actions .ghost,.hdr-actions .primary{padding:7px 10px;font-size:13px}
   }
 </style>
 <!-- Supabase 클라이언트 + 연결 설정 (config.js 는 .gitignore) -->
@@ -188,9 +201,9 @@
 
   <!-- ============ 리스트 뷰 ============ -->
   <div id="listView">
-    <div class="appbar">
+    <div class="appbar list-appbar">
       <h1>내 레시피</h1>
-      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="hdr-actions">
         <button class="ghost" onclick="showFeed()">🌐 공유 후기</button>
         <button class="ghost" onclick="openImport()">📥 가져오기</button>
         <button class="ghost" id="logoutBtn" style="display:none" onclick="doLogout()">로그아웃</button>
@@ -257,7 +270,7 @@
     <!-- 1. 재료 -->
     <div class="card">
       <h2><span class="step">1</span> 재료 (반죽)</h2>
-      <table><thead><tr>
+      <table class="ing-table"><thead><tr>
         <th style="width:34%">재료명</th><th class="num" style="width:16%">양</th><th style="width:16%">단위</th>
         <th class="pct-col num" style="width:14%">B.P %</th><th style="width:14%"></th><th style="width:6%"></th>
       </tr></thead><tbody id="ingBody"></tbody></table>
