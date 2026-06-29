@@ -192,6 +192,7 @@
       <h1>내 레시피</h1>
       <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="ghost" onclick="showFeed()">🌐 공유 후기</button>
+        <button class="ghost" onclick="openImport()">📥 가져오기</button>
         <button class="ghost" id="logoutBtn" style="display:none" onclick="doLogout()">로그아웃</button>
         <button class="primary" onclick="newRecipe()">＋ 새 레시피</button>
       </div>
@@ -203,6 +204,20 @@
     </div>
     <input type="text" id="searchBox" class="search" placeholder="레시피 검색 (이름·제법)" oninput="renderList()">
     <div id="listBody"></div>
+  </div>
+
+  <!-- ============ 레시피 가져오기 ============ -->
+  <div id="importModal" style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:90;display:none;align-items:center;justify-content:center;padding:20px">
+    <div class="auth-card" style="width:min(460px,94vw);max-height:88vh;overflow:auto">
+      <h1 style="font-size:18px">📥 레시피 가져오기</h1>
+      <p class="hint">레시피 JSON을 아래에 붙여넣고 ‘추가’를 누르세요. 여러 개는 <code>[ ... , ... ]</code> 배열로도 돼요.</p>
+      <textarea id="importText" style="min-height:220px;font-size:13px;font-family:ui-monospace,monospace" placeholder='{ "name":"...", "category":"제빵", "ings":[...] }'></textarea>
+      <div id="importErr" class="hint" style="color:var(--warn);display:none"></div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="ghost" style="flex:1" onclick="closeImport()">취소</button>
+        <button class="primary" style="flex:1" onclick="doImport()">추가</button>
+      </div>
+    </div>
   </div>
 
   <!-- ============ 공유 후기 피드 ============ -->
@@ -616,6 +631,58 @@ function newRecipe(){
     storage:{place:'실온',period:'',note:''},steps:[],
     versions:[],reviews:[],lastEdited:todayStr()};
   DB.unshift(r); saveRecipe(r); openRecipe(r.id);
+}
+
+/* ===== 레시피 가져오기 (JSON 붙여넣기) ===== */
+function openImport(){
+  document.getElementById('importText').value='';
+  const e=document.getElementById('importErr'); e.style.display='none';
+  document.getElementById('importModal').style.display='flex';
+}
+function closeImport(){ document.getElementById('importModal').style.display='none'; }
+function importErr(m){ const e=document.getElementById('importErr'); e.textContent='⚠ '+m; e.style.display='block'; return null; }
+function doImport(){
+  const raw=document.getElementById('importText').value.trim();
+  if(!raw) return importErr('내용이 비어 있어요.');
+  let obj;
+  try{ obj=JSON.parse(raw); }
+  catch(err){ return importErr('JSON 형식 오류: '+err.message); }
+  if(Array.isArray(obj)){
+    const made=obj.map(addImported).filter(Boolean);
+    if(!made.length) return importErr('가져올 레시피가 없어요.');
+    closeImport(); showList(); setStatus('✅ '+made.length+'개 가져옴','#dfd',true); return;
+  }
+  const r=addImported(obj);
+  if(!r) return importErr('레시피 형식이 아니에요.');
+  closeImport(); openRecipe(r.id);
+}
+function normImportIngs(a){
+  if(!Array.isArray(a)) return [];
+  return a.map(x=> (x&&x.divider)
+    ? {divider:true,label:x.label||''}
+    : {name:(x&&x.name)||'',g:Number(x&&x.g)||0,unit:(x&&x.unit)||'g',base:!!(x&&x.base)});
+}
+function addImported(o){
+  if(!o||typeof o!=='object'||Array.isArray(o)) return null;
+  const ings=normImportIngs(o.ings);
+  const r={
+    id:uid('r'),
+    category:(o.category==='제과')?'제과':'제빵',
+    name:(o.name||'가져온 레시피').toString().trim()||'가져온 레시피',
+    method:o.method||'스트레이트법',
+    doughTemp:(o.doughTemp===undefined?null:o.doughTemp),
+    ings:ings.length?ings:[{name:'강력분',g:0,unit:'g',base:true}],
+    fills:Array.isArray(o.fills)?o.fills.map(f=>({name:(f&&f.name)||'',kind:(f&&f.kind==='토핑')?'토핑':'충전물',g:Number(f&&f.g)||0,unit:(f&&f.unit)||'g'})):[],
+    division:Object.assign({mode:'weight',weight:null,count:null,perPan:null},o.division||{}),
+    ferm:Object.assign({t1:'',tm1:'',h1:'',t2:'',tm2:'',h2:''},o.ferm||{}),
+    bake:Object.assign({top:'',bottom:'',time:'',pan:'',conv:false,steam:false,steamDetail:'',preheat:'',single:'',deck:false},o.bake||{}),
+    storage:Object.assign({place:'실온',period:'',note:''},o.storage||{}),
+    steps:Array.isArray(o.steps)?o.steps.map(s=> (s&&s.divider)?{divider:true,label:s.label||''}:{time:(s&&s.time)||'',body:(s&&s.body)||''}):[],
+    versions:[],reviews:[],lastEdited:todayStr()
+  };
+  r.versions=[{id:uid('v'),date:todayStr(),memo:'가져오기',snap:clone(defFields(r))}];
+  DB.unshift(r); saveRecipe(r);
+  return r;
 }
 
 /* ===== 기록 뷰 열기 ===== */
