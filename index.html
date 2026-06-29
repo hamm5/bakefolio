@@ -164,13 +164,11 @@
     .del{font-size:16px;padding:0 3px}
     .baseflag{font-size:10px}
     .usel{font-size:13px;padding:5px 3px}
-    /* 재료 테이블: 칸 너비는 thead 기준으로 고정 (td엔 걸지 않음 — 구분자 행 깨짐 방지) */
-    .ing-table{table-layout:fixed}
-    .ing-table th:nth-child(1){width:38%!important}
-    .ing-table th:nth-child(2){width:16%!important}
-    .ing-table th:nth-child(3){width:16%!important}
-    .ing-table th:nth-child(5){width:14%!important}
-    .ing-table th:nth-child(6){width:16%!important}
+    /* 재료 테이블: auto 레이아웃 유지(구분자 행 안전) + 칸 최소폭으로 숫자/단위 잘림 방지.
+       화살표를 숨겨 확보한 공간 덕분에 양·단위가 안 짜부됨 */
+    .ing-table td:nth-child(1) input{min-width:60px}
+    .ing-table td:nth-child(2) input{min-width:40px}
+    .ing-table .usel{min-width:46px}
     .row-act{white-space:nowrap}
     /* 헤더 버튼: 제목 한 줄 유지 + 버튼은 아래 줄에 정렬 */
     .hdr-actions{margin-left:0;width:100%}
